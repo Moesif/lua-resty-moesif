@@ -1,7 +1,5 @@
 # Moesif OpenResty plugin
 
-# Moesif OpenResty plugin
-
 The [Moesif OpenResty plugin](https://github.com/Moesif/lua-resty-moesif) integrates [OpenResty](https://openresty.org/en/)
 with [Moesif API Analytics](https://www.moesif.com).
 
