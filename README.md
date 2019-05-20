@@ -19,6 +19,8 @@ The plugin can be installed using OpenResty Package Manager(opm) by doing:
 opm get Moesif/lua-resty-moesif
 ```
 
+If you're using [luarocks](https://luarocks.org/), please refer how to install [Moesif plugin](https://github.com/Moesif/openresty-plugin-moesif).
+
 ## Configuraion Options
 
 #### __`application_id`__
