@@ -1,4 +1,4 @@
-local helper = require "usr.local.openresty.site.lualib.plugins.moesif.helpers"
+local helpers = require "usr.local.openresty.site.lualib.plugins.moesif.helpers"
 local HTTPS = "https"
 local _M = {}
 
@@ -7,15 +7,18 @@ local _M = {}
 -- @return `sock` Socket object
 -- @return `parsed_url` a table with host details like domain name, port, path etc
 function _M.get_connection(config, url_path)
-  local parsed_url = helper.parse_url(config:get("api_endpoint")..url_path)
+  local parsed_url = helpers.parse_url(config:get("api_endpoint")..url_path)
   local host = parsed_url.host
   local port = tonumber(parsed_url.port)
   local sock = ngx.socket.tcp()
+  local debug = config:get("debug")
 
   sock:settimeout(config:get("timeout"))
-  ok, err = sock:connect(host, port)
+  local ok, err = sock:connect(host, port)
   if not ok then
-    ngx.log(ngx.CRIT, "[moesif] failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
+    if debug then
+      ngx.log(ngx.CRIT, "[moesif] failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
+    end
     return
   else
     ngx.log(ngx.CRIT, "[moesif] Successfully created connection " , ok)
@@ -24,7 +27,9 @@ function _M.get_connection(config, url_path)
   if parsed_url.scheme == HTTPS then
     local _, err = sock:sslhandshake(true, host, false)
     if err then
-      ngx.log(ngx.CRIT, "[moesif] failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
+      if debug then
+        ngx.log(ngx.CRIT, "[moesif] failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
+      end
     end
   end
   return sock, parsed_url
