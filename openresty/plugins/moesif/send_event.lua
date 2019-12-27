@@ -61,6 +61,10 @@ if isempty(config:get("company_id_header")) then
   config:set("company_id_header", "companyId")
 end
 
+if isempty(config:get("debug")) then
+  config:set("debug", false)
+end
+
 
 -- Log Event
 if isempty(config:get("application_id")) then
@@ -69,5 +73,5 @@ else
   local message = moesif_ser.prepare_message(config)
 
   -- Execute/Log message
-  log.execute(config, message)
+  log.execute(config, message, config:get("debug"))
 end

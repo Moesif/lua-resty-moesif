@@ -5,149 +5,15 @@ local req_get_headers = ngx.req.get_headers
 local res_get_headers = ngx.resp.get_headers
 local cjson = require "cjson"
 local random = math.random
+local transaction_id = nil
+local client_ip = require "usr.local.openresty.site.lualib.plugins.moesif.client_ip"
+local zzlib = require "usr.local.openresty.site.lualib.plugins.moesif.zzlib"
 local _M = {}
-
-
--- Function to get the Type of the Ip
-function get_ip_type(ip)
-  local R = {ERROR = 0, IPV4 = 1, IPV6 = 2, STRING = 3}
-  if type(ip) ~= "string" then return R.ERROR end
-
-  -- check for format 1.11.111.111 for ipv4
-  local chunks = {ip:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")}
-  if #chunks == 4 then
-    for _,v in pairs(chunks) do
-      if tonumber(v) > 255 then return R.STRING end
-    end
-    return R.IPV4
-  end
-
-  -- check for ipv6 format, should be 8 'chunks' of numbers/letters
-  -- without leading/trailing chars
-  -- or fewer than 8 chunks, but with only one `::` group
-  local chunks = {ip:match("^"..(("([a-fA-F0-9]*):"):rep(8):gsub(":$","$")))}
-  if #chunks == 8
-  or #chunks < 8 and ip:match('::') and not ip:gsub("::","",1):match('::') then
-    for _,v in pairs(chunks) do
-      if #v > 0 and tonumber(v, 16) > 65535 then return R.STRING end
-    end
-    return R.IPV6
-  end
-  return R.STRING
-end
-
--- Function to check if it is valid Ip Address
-function is_ip(value)
- ip_type = get_ip_type(value)
-
- if ip_type == 1 or ip_type == 2 then
-  return true
- else
-  return false
- end
-end
-
-
--- Function to get the client Ip from the X-forwarded-for header
-function getClientIpFromXForwardedFor(value)
-
-  if value == nil then
-    return nil
-  end
-
-  if type(value) ~= "string" then
-    return nil
-  end
-
-  -- x-forwarded-for may return multiple IP addresses in the format:
-  -- "client IP, proxy 1 IP, proxy 2 IP"
-  -- Therefore, the right-most IP address is the IP address of the most recent proxy
-  -- and the left-most IP address is the IP address of the originating client.
-  -- source: http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/x-forwarded-headers.html
-  -- Azure Web App's also adds a port for some reason, so we'll only use the first part (the IP)
-  forwardedIps = {}
-
-  for word in string.gmatch(value, '([^,]+)') do
-    ip = string.gsub(word, "%s+", "")
-    if string.match(value, ":") then
-        splitted = string.match(value, "(.*)%:")
-        table.insert(forwardedIps, splitted)
-      else
-        table.insert(forwardedIps, ip)
-    end
-  end
-
-
-  for index, value in ipairs(forwardedIps) do
-    if is_ip(value) then
-      return value
-    end
-  end
-end
-
-
--- Function to get the client Ip
-function get_client_ip(req_headers)
-  -- Standard headers used by Amazon EC2, Heroku, and others.
-  if is_ip(req_headers["x-client-ip"]) then
-     return req_headers["x-client-ip"]
-  end
-
-  -- Load-balancers (AWS ELB) or proxies.
-  xForwardedFor = getClientIpFromXForwardedFor(req_headers["x-forwarded-for"]);
-  if (is_ip(xForwardedFor)) then
-      return xForwardedFor
-  end
-
-  -- Cloudflare.
-  -- @see https://support.cloudflare.com/hc/en-us/articles/200170986-How-does-Cloudflare-handle-HTTP-Request-headers-
-  -- CF-Connecting-IP - applied to every request to the origin.
-  if is_ip(req_headers["cf-connecting-ip"]) then
-      return req_headers["cf-connecting-ip"]
-  end
-
-  -- Fastly and Firebase hosting header (When forwared to cloud function)
-  if (is_ip(req_headers["fastly-client-ip"])) then
-      return req_headers["fastly-client-ip"]
-  end
-
-  -- Akamai and Cloudflare: True-Client-IP.
-  if (is_ip(req_headers["true-client-ip"])) then
-      return req_headers["true-client-ip"]
-  end
-
-  -- Default nginx proxy/fcgi; alternative to x-forwarded-for, used by some proxies.
-  if (is_ip(req_headers["x-real-ip"])) then
-      return req_headers["x-real-ip"]
-  end
-
-  -- (Rackspace LB and Riverbed's Stingray)
-  -- http://www.rackspace.com/knowledge_center/article/controlling-access-to-linux-cloud-sites-based-on-the-client-ip-address
-  -- https://splash.riverbed.com/docs/DOC-1926
-  if (is_ip(req_headers["x-cluster-client-ip"])) then
-      return req_headers["x-cluster-client-ip"]
-  end
-
-  if (is_ip(req_headers["x-forwarded"])) then
-      return req_headers["x-forwarded"]
-  end
-
-  if (is_ip(req_headers["forwarded-for"])) then
-      return req_headers["forwarded-for"]
-  end
-
-  if (is_ip(req_headers.forwarded)) then
-      return req_headers.forwarded
-  end
-
-  -- Return remote address
-  return ngx.var.remote_addr
-end
 
 
 -- Split the string
 local function split(str, character)
-  result = {}
+  local result = {}
 
   index = 1
   for s in string.gmatch(str, "[^"..character.."]+") do
@@ -256,7 +122,7 @@ function _M.prepare_message(config)
   -- Add Transaction Id to the request header
   if not config:get("disable_transaction_id") then
     if headers["X-Moesif-Transaction-Id"] ~= nil then
-      req_trans_id = headers["X-Moesif-Transaction-Id"]
+      local req_trans_id = headers["X-Moesif-Transaction-Id"]
       if req_trans_id ~= nil and req_trans_id:gsub("%s+", "") ~= "" then
         transaction_id = req_trans_id
       else
@@ -279,13 +145,27 @@ function _M.prepare_message(config)
     response_headers["X-Moesif-Transaction-Id"] = transaction_id
   end
 
+  if (response_headers["content-encoding"] ~= nil) and (response_headers["content-encoding"] == 'gzip') then 
+    local ok, decompressed_body = pcall(zzlib.gunzip, response_body_entity)
+      if not ok then
+        if config:get("debug") then
+          ngx.log(ngx.CRIT, "[moesif] failed to decompress body: ", decompressed_body)
+        end
+      else
+        if config:get("debug") then
+          ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
+        end
+        response_body_entity = decompressed_body
+      end
+  end
+
   return {
     request = {
       uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. ngx.var.request_uri,
       headers = ngx.req.get_headers(),
       body = request_body_entity,
       verb = req_get_method(),
-      ip_address = get_client_ip(ngx.req.get_headers()),
+      ip_address = client_ip.get_client_ip(ngx.req.get_headers()),
       api_version = ngx.ctx.api_version,
       time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000)
     },
@@ -298,7 +178,8 @@ function _M.prepare_message(config)
     },
     session_token = session_token_entity,
     user_id = user_id_entity,
-    company_id = company_id_entity
+    company_id = company_id_entity,
+    direction = "Incoming"
   }
 end
 

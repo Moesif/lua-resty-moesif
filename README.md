@@ -4,7 +4,7 @@ The [Moesif OpenResty plugin](https://github.com/Moesif/lua-resty-moesif) integr
 with [Moesif API Analytics](https://www.moesif.com).
 
 - OpenResty is a dynamic web platform based on NGINX and LuaJIT.
-- Moesif is an API analytics and debugging service.
+- Moesif is an API analytics and monitoring service.
 
 When enabled, this plugin will capture API requests and responses and log to Moesif API Insights for easy inspecting and real-time debugging of your API traffic.
 Support for REST, GraphQL, Ethereum Web3, JSON-RPC, SOAP, & more
@@ -24,7 +24,13 @@ If you're using [luarocks](https://luarocks.org/), please refer how to install [
 ## Configuraion Options
 
 #### __`application_id`__
-(__required__), _string_, is obtained via your Moesif Account, this is required.
+(__required__), _string_, Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
+
+After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
+
+You can always find your Moesif Application Id at any time by logging 
+into the [_Moesif Portal_](https://www.moesif.com/), click on the top right menu,
+and then clicking _API Keys_.
 
 #### __`api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with in Moesif. `1.0` by default.
@@ -49,6 +55,9 @@ If you're using [luarocks](https://luarocks.org/), please refer how to install [
 
 #### __`company_id_header`__
 (optional) _string_, Request / Response Header to Identify Company. `companyId` by default.
+
+#### __`debug`__
+(optional) boolean, Set to true to print debug logs if you're having integration issues.
 
 ## How to use
 
@@ -122,4 +131,4 @@ Congratulations! If everything was done corectly, Moesif should now be tracking 
 
 ## Other integrations
 
-To view more more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
+To view more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
