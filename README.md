@@ -1,36 +1,35 @@
-# Moesif OpenResty plugin
+# Moesif Plugin for NGINX OpenResty
 
-The [Moesif OpenResty plugin](https://github.com/Moesif/lua-resty-moesif) integrates [OpenResty](https://openresty.org/en/)
-with [Moesif API Analytics](https://www.moesif.com).
+NGINX [OpenResty](https://openresty.org/en/) plugin that logs API calls and sends to [Moesif](https://www.moesif.com) for API analytics and log analysis.
 
-- OpenResty is a dynamic web platform based on NGINX and LuaJIT.
-- Moesif is an API analytics and monitoring service.
-
-When enabled, this plugin will capture API requests and responses and log to Moesif API Insights for easy inspecting and real-time debugging of your API traffic.
-Support for REST, GraphQL, Ethereum Web3, JSON-RPC, SOAP, & more
-
-[Source Code on GitHub](https://github.com/Moesif/lua-resty-moesif)
+[Github Repo](https://github.com/Moesif/lua-resty-moesif)
 
 ## How to install
 
-The plugin can be installed using OpenResty Package Manager(opm) by doing:
+OpenResty provides its own package manager, OPM, which is the recommended installation method. 
+There is also an alternative installation via Luarocks. 
 
-```shell
+For OPM, install [lua-resty-moesif](https://github.com/Moesif/lua-resty-moesif):
+
+```bash
 opm get Moesif/lua-resty-moesif
 ```
 
-If you're using [luarocks](https://luarocks.org/), please refer how to install [Moesif plugin](https://github.com/Moesif/openresty-plugin-moesif).
+For Luarocks, install the [openresty-plugin-moesif](https://luarocks.org/modules/moesif/openresty-plugin-moesif) rock:
+```bash
+luarocks install --server=http://luarocks.org/manifests/moesif openresty-plugin-moesif
+```
 
-## Configuraion Options
+## Configuration Options
 
 #### __`application_id`__
-(__required__), _string_, Your Moesif Application Id can be found in the [_Moesif Portal_](https://www.moesif.com/).
+(__required__), _string_, Application Id to authenticate with Moesif. This is required.
 
-After signing up for a Moesif account, your Moesif Application Id will be displayed during the onboarding steps. 
+#### __`user_id_header`__
+(optional) _string_, The Request or Response Header containing the user id. Your downstream service should also set this header with the actual authenticated user id. 
 
-You can always find your Moesif Application Id at any time by logging 
-into the [_Moesif Portal_](https://www.moesif.com/), click on the top right menu,
-and then clicking _API Keys_.
+#### __`company_id_header`__
+(optional) _string_, The Request or Response Header containing the company id. Your downstream service should also set this header with the actual authenticated company id. 
 
 #### __`api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with in Moesif. `1.0` by default.
@@ -42,26 +41,21 @@ and then clicking _API Keys_.
 (optional) _boolean_, An option to disable logging of response body. `false` by default.
 
 #### __`request_masks`__
-(optional) _string_, An option to mask a specific request body field. To mask multiple fields, seperate it by comma. For Example - "header1, header2"
+(optional) _string_, An option to mask a specific request body fields. Separate multiple fields by comma such as `"field_a, field_b"`
 
 #### __`response_masks`__
-(optional) _string_, An option to mask a specific response body field. To mask multiple fields, seperate it by comma. For Example - "header1, header2"
+(optional) _string_, An option to mask a specific response body fields. Separate multiple fields by comma such as `"field_a, field_b"`
 
 #### __`disable_transaction_id`__
 (optional) _boolean_, Setting to true will prevent insertion of the <code>X-Moesif-Transaction-Id</code> header. `false` by default.
 
-#### __`user_id_header`__
-(optional) _string_, Request / Response Header to Identify User. `userId` by default.
-
-#### __`company_id_header`__
-(optional) _string_, Request / Response Header to Identify Company. `companyId` by default.
-
 #### __`debug`__
-(optional) boolean, Set to true to print debug logs if you're having integration issues.
+(optional) _boolean_, Set to true to print debug logs if you're having integration issues.
 
 ## How to use
 
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
+Replace `/usr/local/openresty/site/lualib` with the correct plugin installation path, if needed.
 
 ```nginx
 lua_shared_dict conf 2m;
@@ -69,14 +63,8 @@ lua_shared_dict conf 2m;
 init_by_lua_block {
    local config = ngx.shared.conf;
    config:set("application_id", "Your Moesif Application Id")
-   config:set("api_version", "1.0")
-   config:set("disable_capture_request_body", false)
-   config:set("disable_capture_response_body", false)
-   config:set("request_masks", "req_mask")
-   config:set("response_masks", "resp_mask")
-   config:set("disable_transaction_id", false)
-   config:set("user_id_header", "userId")
-   config:set("company_id_header", "companyId")
+   config:set("user_id_header", "X-Forwarded-User")
+   config:set("company_id_header", "X-Forwarded-Company")
 }
 
 
@@ -125,7 +113,7 @@ server {
 ```
 
 ## Example
-An example Moesif integration based on quick start tutorial of Openresty: [Moesif OpenResty Example](https://github.com/Moesif/lua-resty-moesif-example)
+An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
 
 Congratulations! If everything was done corectly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
 
