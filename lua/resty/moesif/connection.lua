@@ -1,4 +1,4 @@
-local helpers = require "usr.local.openresty.site.lualib.plugins.moesif.helpers"
+local helpers = require "helpers"
 local HTTPS = "https"
 local _M = {}
 

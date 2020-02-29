@@ -7,9 +7,9 @@ local queue_hashes = {}
 local moesif_events = "moesif_events_"
 local has_events = false
 local ngx_md5 = ngx.md5
-local compress = require "usr.local.openresty.site.lualib.plugins.moesif.lib_deflate"
-local helpers = require "usr.local.openresty.site.lualib.plugins.moesif.helpers"
-local connect = require "usr.local.openresty.site.lualib.plugins.moesif.connection"
+local compress = require "lib_deflate"
+local helpers = require "helpers"
+local connect = require "connection"
 local sample_rate = 100
 local _M = {}
 
@@ -95,7 +95,7 @@ local function generate_post_payload(parsed_url, message, application_id, debug)
 
   local payload = string_format(
     "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-    "POST", parsed_url.path, parsed_url.host, application_id, "openresty-plugin-moesif/".."0.1.0", "deflate", #body, body)
+    "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."0.1.0", "deflate", #body, body)
   return payload
 end
 
