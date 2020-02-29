@@ -9,15 +9,15 @@ NGINX [OpenResty](https://openresty.org/en/) plugin that logs API calls and send
 OpenResty provides its own package manager, OPM, which is the recommended installation method. 
 There is also an alternative installation via Luarocks. 
 
-For OPM, install [lua-resty-moesif](https://github.com/Moesif/lua-resty-moesif):
+For OPM, install via opm get:
 
 ```bash
 opm get Moesif/lua-resty-moesif
 ```
 
-For Luarocks, install the [openresty-plugin-moesif](https://luarocks.org/modules/moesif/openresty-plugin-moesif) rock:
+For Luarocks, install the rock:
 ```bash
-luarocks install --server=http://luarocks.org/manifests/moesif openresty-plugin-moesif
+luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
 ```
 
 ## Configuration Options
