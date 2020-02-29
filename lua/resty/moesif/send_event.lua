@@ -2,8 +2,8 @@ local json = require("json")
 local socket = require("socket")
 local url = require "socket.url"
 local HTTPS = "https"
-local moesif_ser = require "usr.local.openresty.site.lualib.plugins.moesif.moesif_ser"
-local log = require "usr.local.openresty.site.lualib.plugins.moesif.log"
+local moesif_ser = require "moesif_ser"
+local log = require "log"
 
 local function isempty(s)
   return s == nil or s == ''
@@ -75,3 +75,10 @@ else
   -- Execute/Log message
   log.execute(config, message, config:get("debug"))
 end
+
+
+-- Change version
+-- Sync with Kong plugin
+-- UserId 
+-- TransactionId
+-- Test with Mask Fields

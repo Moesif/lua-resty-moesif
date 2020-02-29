@@ -4,10 +4,13 @@ local req_start_time = ngx.req.start_time
 local req_get_headers = ngx.req.get_headers
 local res_get_headers = ngx.resp.get_headers
 local cjson = require "cjson"
+local cjson_safe = require "cjson.safe"
 local random = math.random
 local transaction_id = nil
-local client_ip = require "usr.local.openresty.site.lualib.plugins.moesif.client_ip"
-local zzlib = require "usr.local.openresty.site.lualib.plugins.moesif.zzlib"
+local client_ip = require "client_ip"
+local zzlib = require "zzlib"
+local utf8_validator = require "utf8_validator"
+local base64 = require "base64"
 local _M = {}
 
 
@@ -26,26 +29,77 @@ end
 
 
 -- Mask Body
-local function mask_body(body, masks)
+function mask_body(body, masks)
   if masks == nil then return body end
   if body == nil then return body end
   for mask_key, mask_value in pairs(masks) do
-    if body[mask_value] then body[mask_value] = nil end
-      for body_key, body_value in next, body do
-          if type(body_value)=="table" then mask_body(body_value, masks) end
-      end
+    mask_value = mask_value:gsub("%s+", "")
+    if body[mask_value] ~= nil then body[mask_value] = nil end
+    for body_key, body_value in next, body do
+        if type(body_value)=="table" then mask_body(body_value, masks) end
+    end
   end
   return body
 end
 
--- function to generate uuid
-math.randomseed(os.time())
-local function uuid()
-    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-    return string.gsub(template, '[xy]', function (c)
-        local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
-        return string.format('%x', v)
-    end)
+function base64_encode_body(body)
+  return base64.encode(body), 'base64'
+end
+
+function transform_body(body)
+  if type(body) == "string" and string.sub(body, 1, 1) == "{" or string.sub(body, 1, 1) == "[" then
+    local decoded_body = cjson_safe.decode(body)
+    if not decoded_body then 
+      return base64_encode_body(body)
+    else
+      return decoded_body, 'json' 
+    end
+  else
+    return base64_encode_body(body)
+  end
+end
+
+function process_data(body, mask_fields)
+  local body_entity = nil
+  local body_transfer_encoding = nil
+  
+  if next(mask_fields) == nil then
+    body_entity, body_transfer_encoding = transform_body(body)
+  else
+    local is_decoded, decoded_body = pcall(cjson_safe.decode, body)
+    if not is_decoded then 
+      body_entity, body_transfer_encoding = transform_body(body)
+    elseif (decoded_body ~= nil) then
+      local ok, mask_result = pcall(mask_body, decoded_body, mask_fields)
+      if not ok then
+        body_entity, body_transfer_encoding = transform_body(body)
+      else
+        body_entity, body_transfer_encoding = transform_body(cjson.encode(mask_result))
+      end
+    else
+      body_entity, body_transfer_encoding = transform_body(body)
+    end 
+  end
+  return body_entity, body_transfer_encoding
+end
+
+function decompress_body(body, masks)
+  local body_entity = nil
+  local body_transfer_encoding = nil
+
+  local ok, decompressed_body = pcall(zzlib.gunzip, body)
+  if not ok then
+    if debug then
+      ngx.log(ngx.CRIT, "[moesif] failed to decompress body: ", decompressed_body)
+    end
+    body_entity, body_transfer_encoding = base64_encode_body(body)
+  else
+    if debug then
+      ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
+    end
+    body_entity, body_transfer_encoding = process_data(decompressed_body, masks)
+  end
+  return body_entity, body_transfer_encoding
 end
 
 -- Prepare message
@@ -58,50 +112,41 @@ function _M.prepare_message(config)
   local user_id_entity
   local company_id_header
   local company_id_entity
+  local req_body_transfer_encoding = nil
+  local rsp_body_transfer_encoding = nil
 
   -- User Id
   user_id_header = string.lower(config:get("user_id_header"))
   user_id_entity = ngx.req.get_headers()[user_id_header] or ngx.resp.get_headers()[user_id_header]
 
+  -- Get default user Id
+  if user_id_entity == nil and ngx.var.remote_user ~= nil then
+    user_id_entity = ngx.var.remote_user
+  end
+
   -- Company Id
   company_id_header = string.lower(config:get("company_id_header"))
   company_id_entity = ngx.req.get_headers()[company_id_header] or ngx.resp.get_headers()[company_id_header]
 
-  -- Disable capture and mask request body
-  if  config:get("disable_capture_request_body") then
-      request_body_entity = nil
+  if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
+    request_body_entity = nil
+  else
+    local is_valid_request_body = utf8_validator.validate(moesif_ctx.req_body)
+    if not is_valid_request_body then
+      request_body_entity, req_body_transfer_encoding = decompress_body(moesif_ctx.req_body, split(config:get("request_masks"), ","))
     else
-      if next(split(config:get("request_masks"), ",")) == nil then
-        request_body_entity = moesif_ctx.req_body
-      else
-        if moesif_ctx.req_body ~= nil then
-          ok, mask_result = pcall(mask_body, cjson.decode(moesif_ctx.req_body), split(config:get("request_masks"), ","))
-          if not ok then
-            request_body_entity = moesif_ctx.req_body
-          else
-            request_body_entity = cjson.encode(mask_result)
-          end
-        else
-          request_body_entity = moesif_ctx.req_body
-        end
+      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, split(config:get("request_masks"), ","))
+    end 
+  end
 
-      end
-    end
-
-
-  -- Disable capture and mask response body
-  if config:get("disable_capture_response_body") then
+  if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") then
     response_body_entity = nil
   else
-    if next(split(config:get("response_masks"), ",")) == nil then
-      response_body_entity = moesif_ctx.res_body
+    local is_valid_response_body = utf8_validator.validate(moesif_ctx.res_body)
+    if not is_valid_response_body then
+      response_body_entity, rsp_body_transfer_encoding = decompress_body(moesif_ctx.res_body, split(config:get("response_masks"), ","))
     else
-      ok, mask_result = pcall(mask_body, cjson.decode(moesif_ctx.res_body), split(config:get("response_masks"), ","))
-      if not ok then
-        response_body_entity = moesif_ctx.res_body
-      else
-        response_body_entity = cjson.encode(mask_result)
-      end
+      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, split(config:get("response_masks"), ","))
     end
   end
 
@@ -126,10 +171,10 @@ function _M.prepare_message(config)
       if req_trans_id ~= nil and req_trans_id:gsub("%s+", "") ~= "" then
         transaction_id = req_trans_id
       else
-        transaction_id = uuid()
+        transaction_id = ngx.var.request_id
       end
     else
-      transaction_id = uuid()
+      transaction_id = ngx.var.request_id
     end
   -- Add Transaction Id to the request header
   ngx.req.set_header("X-Moesif-Transaction-Id", transaction_id)
@@ -167,7 +212,8 @@ function _M.prepare_message(config)
       verb = req_get_method(),
       ip_address = client_ip.get_client_ip(ngx.req.get_headers()),
       api_version = ngx.ctx.api_version,
-      time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000)
+      time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000),
+      transfer_encoding = req_body_transfer_encoding,
     },
     response = {
       time = os.date("!%Y-%m-%dT%H:%M:%S.", ngx_now()) .. string.format("%d",(ngx_now()- string.format("%d",ngx_now()))*1000),
@@ -175,6 +221,7 @@ function _M.prepare_message(config)
       ip_address = Nil,
       headers = response_headers,
       body = response_body_entity,
+      transfer_encoding = rsp_body_transfer_encoding,
     },
     session_token = session_token_entity,
     user_id = user_id_entity,
