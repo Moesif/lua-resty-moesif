@@ -239,11 +239,11 @@ function _M.execute(config, message, debug)
     if config:get("is_config_fetched") == nil then
       local ok, err = ngx.timer.at(0, get_config, config, application_id, debug)
       if not ok then
-        if config.debug then
+        if debug then
           ngx.log(ngx.CRIT, "[moesif] failed to get application config, setting the sample_rate to default ", err)
         end
       else
-        if config.debug then
+        if debug then
           ngx.log(ngx.CRIT, "[moesif] successfully fetched the application configuration" , ok)
         end
       end
@@ -265,7 +265,7 @@ function _M.execute(config, message, debug)
 
   local ok, err = ngx.timer.at(0, log, config, message, hash_key, debug)
   if not ok then
-    if config.debug then
+    if debug then
       ngx.log(ngx.CRIT, "[moesif] failed to create timer: ", err)
     end
   end

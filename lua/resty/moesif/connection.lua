@@ -14,6 +14,8 @@ function _M.get_connection(config, url_path)
   local debug = config:get("debug")
 
   sock:settimeout(config:get("timeout"))
+  local api_version = config:get("api_version")
+  ngx.ctx.api_version = api_version
   local ok, err = sock:connect(host, port)
   if not ok then
     if debug then
@@ -21,7 +23,9 @@ function _M.get_connection(config, url_path)
     end
     return
   else
-    ngx.log(ngx.CRIT, "[moesif] Successfully created connection " , ok)
+    if debug then
+      ngx.log(ngx.CRIT, "[moesif] Successfully created connection " , ok)
+    end
   end
 
   if parsed_url.scheme == HTTPS then
