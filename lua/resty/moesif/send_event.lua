@@ -75,10 +75,3 @@ else
   -- Execute/Log message
   log.execute(config, message, config:get("debug"))
 end
-
-
--- Change version
--- Sync with Kong plugin
--- UserId 
--- TransactionId
--- Test with Mask Fields
