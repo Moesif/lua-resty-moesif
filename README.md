@@ -6,18 +6,17 @@ NGINX [OpenResty](https://openresty.org/en/) plugin that logs API calls and send
 
 ## How to install
 
-OpenResty provides its own package manager, OPM, which is the recommended installation method. 
-There is also an alternative installation via Luarocks. 
+The recommended way to install Moesif is via Luarocks:
 
-For OPM, install via opm get:
+```bash
+luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
+```
+
+Alternatively, OpenResty provides its own package manager, OPM, which can be used to install Moesif.
+Keep in mind OPM is not well maintained and release acceptance may be delayed by a few days, which is why we recommend LuaRocks, if possible.
 
 ```bash
 opm get Moesif/lua-resty-moesif
-```
-
-For Luarocks, install the rock:
-```bash
-luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
 ```
 
 ## Configuration Options
@@ -57,6 +56,7 @@ luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
 Replace `/usr/local/openresty/site/lualib` with the correct plugin installation path, if needed.
 
+
 ```nginx
 lua_shared_dict conf 2m;
 
@@ -67,8 +67,7 @@ init_by_lua_block {
    config:set("company_id_header", "X-Forwarded-Company")
 }
 
-
-lua_package_path "/usr/local/openresty/site/lualib/plugins/moesif/?.lua;;";
+lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/?.lua;;";
 
 server {
   listen 80;
@@ -104,10 +103,9 @@ server {
     ngx.ctx.moesif = moesif_data
   ';
 
-
   location / {
     proxy_pass URL;
-    log_by_lua_file /usr/local/openresty/site/lualib/plugins/moesif/send_event.lua;
+    log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/send_event.lua;
   }
 }
 ```
