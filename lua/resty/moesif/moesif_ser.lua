@@ -108,25 +108,26 @@ function _M.prepare_message(config)
   local session_token_entity
   local request_body_entity
   local response_body_entity
-  local user_id_header
   local user_id_entity
-  local company_id_header
   local company_id_entity
+  local api_version
   local req_body_transfer_encoding = nil
   local rsp_body_transfer_encoding = nil
 
   -- User Id
-  user_id_header = string.lower(config:get("user_id_header"))
-  user_id_entity = ngx.req.get_headers()[user_id_header] or ngx.resp.get_headers()[user_id_header]
-
-  -- Get default user Id
-  if user_id_entity == nil and ngx.var.remote_user ~= nil then
+  if ngx.var.user_id ~= nil then
+    user_id_entity = ngx.var.user_id
+  elseif ngx.var.remote_user ~= nil then
     user_id_entity = ngx.var.remote_user
   end
 
-  -- Company Id
-  company_id_header = string.lower(config:get("company_id_header"))
-  company_id_entity = ngx.req.get_headers()[company_id_header] or ngx.resp.get_headers()[company_id_header]
+  if ngx.var.company_id ~= nil then
+    company_id_entity = ngx.var.company_id
+  end
+
+  if ngx.var.api_version ~= nil then
+    api_version = ngx.var.api_version
+  end
 
   if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
     request_body_entity = nil
@@ -211,7 +212,7 @@ function _M.prepare_message(config)
       body = request_body_entity,
       verb = req_get_method(),
       ip_address = client_ip.get_client_ip(ngx.req.get_headers()),
-      api_version = ngx.ctx.api_version,
+      api_version = api_version,
       time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000),
       transfer_encoding = req_body_transfer_encoding,
     },
