@@ -19,19 +19,21 @@ Keep in mind OPM is not well maintained and release acceptance may be delayed by
 opm get Moesif/lua-resty-moesif
 ```
 
-## Configuration Options
+## Shared Configuration (ngx.shared)
+
+The below options are static for all requests. Set these options on the shared dictionary, `ngx.shared.moesif_conf`:
+
+```nginx
+lua_shared_dict moesif_conf 2m;
+
+init_by_lua_block {
+   local config = ngx.shared.moesif_conf;
+   config:set("application_id", "Your Moesif Application Id")
+}
+```
 
 #### __`application_id`__
 (__required__), _string_, Application Id to authenticate with Moesif. This is required.
-
-#### __`user_id_header`__
-(optional) _string_, The Request or Response Header containing the user id. Your downstream service should also set this header with the actual authenticated user id. 
-
-#### __`company_id_header`__
-(optional) _string_, The Request or Response Header containing the company id. Your downstream service should also set this header with the actual authenticated company id. 
-
-#### __`api_version`__
-(optional) _boolean_, An optional API Version you want to tag this request with in Moesif. `1.0` by default.
 
 #### __`disable_capture_request_body`__
 (optional) _boolean_, An option to disable logging of request body. `false` by default.
@@ -51,6 +53,25 @@ opm get Moesif/lua-resty-moesif
 #### __`debug`__
 (optional) _boolean_, Set to true to print debug logs if you're having integration issues.
 
+## Dynamic Variables (ngx.var)
+
+The below variables are dynamic for each request. Set these variables on the `ngx.var` dictionary:
+
+```nginx
+header_filter_by_lua_block  { 
+  ngx.var.user_id = ngx.resp.get_headers()["User-Id"]
+}
+```
+
+#### __`user_id`__
+(optional) _string_, This enables Moesif to attribute API requests to individual users so you can understand who calling your API. This can be used simultaneously with `company_id`. A company can have one or more users. 
+
+#### __`company_id`__
+(optional) _string_, If your business is B2B, this enables Moesif to attribute API requests to companies or accounts so you can understand who is calling your API. This can be used simultaneously with `user_id`. A company can have one or more users. 
+
+#### __`api_version`__
+(optional) _boolean_, An optional API Version you want to tag this request with.
+
 ## How to use
 
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
@@ -58,13 +79,11 @@ Replace `/usr/local/openresty/site/lualib` with the correct plugin installation 
 
 
 ```nginx
-lua_shared_dict conf 2m;
+lua_shared_dict moesif_conf 2m;
 
 init_by_lua_block {
-   local config = ngx.shared.conf;
+   local config = ngx.shared.moesif_conf;
    config:set("application_id", "Your Moesif Application Id")
-   config:set("user_id_header", "X-Forwarded-User")
-   config:set("company_id_header", "X-Forwarded-Company")
 }
 
 lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/?.lua;;";
@@ -73,9 +92,16 @@ server {
   listen 80;
   resolver 8.8.8.8;
 
-  # This will make sure that any changes to the lua code file is picked up
-  # without reloading or restarting nginx
-  lua_code_cache off;
+  # Default values for Moesif variables
+  set $user_id nil;
+  set $company_id nil;
+  set $api_version nil;
+
+  header_filter_by_lua_block  { 
+    ngx.var.user_id = ngx.req.get_headers()["User-Id"]
+    ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
+    ngx.var.api_version = ngx.req.get_headers()["X-Api-Version"]
+  }
 
   access_by_lua '
     local req_body, res_body = "", ""
@@ -87,7 +113,7 @@ server {
     if content_type and string.find(content_type:lower(), "application/x-www-form-urlencoded", nil, true) then
       req_post_args = ngx.req.get_post_args()
     end
-    ngx.ctx.api_version = ngx.shared.conf:get("api_version")
+
     -- keep in memory the bodies for this request
     ngx.ctx.moesif = {
       req_body = req_body,

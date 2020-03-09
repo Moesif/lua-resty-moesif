@@ -10,7 +10,7 @@ local function isempty(s)
 end
 
 -- Global config
-config = ngx.shared.conf;
+config = ngx.shared.moesif_conf;
 
 -- Set Default values.
 if isempty(config:get("disable_transaction_id")) then
@@ -27,10 +27,6 @@ end
 
 if isempty(config:get("keepalive")) then
   config:set("keepalive", 10000)
-end
-
-if isempty(config:get("api_version")) then
-  config:set("api_version", "1.0")
 end
 
 if isempty(config:get("disable_capture_request_body")) then
@@ -51,14 +47,6 @@ end
 
 if isempty(config:get("batch_size")) then
   config:set("batch_size", 25)
-end
-
-if isempty(config:get("user_id_header")) then
-  config:set("user_id_header", "userId")
-end
-
-if isempty(config:get("company_id_header")) then
-  config:set("company_id_header", "companyId")
 end
 
 if isempty(config:get("debug")) then
