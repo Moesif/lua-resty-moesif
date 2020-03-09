@@ -95,12 +95,14 @@ server {
   # Default values for Moesif variables
   set $user_id nil;
   set $company_id nil;
-  set $api_version nil;
 
   header_filter_by_lua_block  { 
+
+    # Optionally, identify the user such as by a header value
     ngx.var.user_id = ngx.req.get_headers()["User-Id"]
+
+    # Optionally, identify the company (account) such as by a header value
     ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
-    ngx.var.api_version = ngx.req.get_headers()["X-Api-Version"]
   }
 
   access_by_lua '
@@ -129,9 +131,12 @@ server {
     ngx.ctx.moesif = moesif_data
   ';
 
-  location / {
-    proxy_pass URL;
-    log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/send_event.lua;
+  log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/send_event.lua;
+
+  # Sample Hello World API
+  location /api {
+    add_header Content-Type "application/json";
+    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
   }
 }
 ```
