@@ -26,8 +26,11 @@ The below options are static for all requests. Set these options on the shared d
 ```nginx
 lua_shared_dict moesif_conf 2m;
 
-#### __`company_id_header`__
-(optional) _string_, The Request or Response Header containing the company id. Your downstream service should also set this header with the actual authenticated company id. 
+init_by_lua_block {
+   local config = ngx.shared.moesif_conf;
+   config:set("application_id", "Your Moesif Application Id")
+}
+```
 
 #### __`application_id`__
 (__required__), _string_, Application Id to authenticate with Moesif. This is required.
