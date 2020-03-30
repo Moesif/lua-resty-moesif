@@ -115,7 +115,17 @@ function _M.prepare_message(config)
   local rsp_body_transfer_encoding = nil
 
   -- User Id
-  if ngx.var.user_id ~= nil then
+  if ngx.var.credentials ~= nil and ngx.var.credentials.app_id ~= nil then
+    user_id_entity = ngx.var.credentials.app_id
+  elseif ngx.var.arg_app_id ~= nil then
+    user_id_entity = ngx.var.arg_app_id
+  elseif ngx.var.credentials ~= nil and ngx.var.credentials.user_key ~= nil then
+    user_id_entity = ngx.var.credentials.user_key
+  elseif ngx.var.user_key ~= nil then
+    user_id_entity = ngx.var.user_key
+  elseif ngx.var.userid ~= nil then
+    user_id_entity = ngx.var.userid
+  elseif ngx.var.user_id ~= nil then
     user_id_entity = ngx.var.user_id
   elseif ngx.var.remote_user ~= nil then
     user_id_entity = ngx.var.remote_user
