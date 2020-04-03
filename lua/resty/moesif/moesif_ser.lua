@@ -129,10 +129,14 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.user_id
   elseif ngx.var.remote_user ~= nil then
     user_id_entity = ngx.var.remote_user
+  elseif ngx.var.application_id ~= nil then
+    user_id_entity = ngx.var.application_id
   end
 
   if ngx.var.company_id ~= nil then
     company_id_entity = ngx.var.company_id
+  elseif ngx.var.account_id ~= nil then
+    company_id_entity = ngx.var.account_id
   end
 
   if ngx.var.api_version ~= nil then
