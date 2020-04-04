@@ -86,7 +86,7 @@ init_by_lua_block {
    config:set("application_id", "Your Moesif Application Id")
 }
 
-lua_package_path "/usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/?.lua;;";
+lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua";
 
 server {
   listen 80;
@@ -105,33 +105,9 @@ server {
     ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
   }
 
-  access_by_lua '
-    local req_body, res_body = "", ""
-    local req_post_args = {}
-
-    ngx.req.read_body()
-    req_body = ngx.req.get_body_data()
-    local content_type = ngx.req.get_headers()["content-type"]
-    if content_type and string.find(content_type:lower(), "application/x-www-form-urlencoded", nil, true) then
-      req_post_args = ngx.req.get_post_args()
-    end
-
-    -- keep in memory the bodies for this request
-    ngx.ctx.moesif = {
-      req_body = req_body,
-      res_body = res_body,
-      req_post_args = req_post_args
-    }
-  ';
-
-  body_filter_by_lua '
-    local chunk = ngx.arg[1]
-    local moesif_data = ngx.ctx.moesif or {res_body = ""} -- minimize the number of calls to ngx.ctx while fallbacking on default value
-    moesif_data.res_body = moesif_data.res_body .. chunk
-    ngx.ctx.moesif = moesif_data
-  ';
-
-  log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/lua/resty/moesif/send_event.lua;
+  access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
+  body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
+  log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event.lua;
 
   # Sample Hello World API
   location /api {
