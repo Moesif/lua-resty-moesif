@@ -1,4 +1,3 @@
-local json = require("json")
 local socket = require("socket")
 local url = require "socket.url"
 local HTTPS = "https"
