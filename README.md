@@ -75,8 +75,8 @@ header_filter_by_lua_block  {
 ## How to use
 
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
-Replace `/usr/local/openresty/site/lualib` with the correct plugin installation path, if needed.
-
+Replace `/usr/share/lua/5.1/lua/resty` with the correct plugin installation path, if needed.
+This may be logged to screen during installation of luarock. If in doubt, find the path via: `find / -name "moesif" -type d`
 
 ```nginx
 lua_shared_dict moesif_conf 2m;
@@ -86,7 +86,8 @@ init_by_lua_block {
    config:set("application_id", "Your Moesif Application Id")
 }
 
-lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua";
+lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
+lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua";
 
 server {
   listen 80;
@@ -120,7 +121,7 @@ server {
 ## Example
 An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
 
-Congratulations! If everything was done corectly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
+Congratulations! If everything was done correctly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
 
 ## Other integrations
 
