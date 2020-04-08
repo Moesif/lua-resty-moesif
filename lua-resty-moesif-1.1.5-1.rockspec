@@ -1,7 +1,7 @@
 package = "lua-resty-moesif"  -- TODO: rename, must match the info in the filename of this rockspec!
                                   -- as a convention; stick to the prefix: `kong-plugin-`
-version = "1.1.4-1"               -- TODO: renumber, must match the info in the filename of this rockspec!
--- The version '1.1.4' is the source code version, the trailing '1' is the version of this rockspec.
+version = "1.1.5-1"               -- TODO: renumber, must match the info in the filename of this rockspec!
+-- The version '1.1.5' is the source code version, the trailing '1' is the version of this rockspec.
 -- whenever the source version changes, the rockspec should be reset to 1. The rockspec version is only
 -- updated (incremented) when this file changes, but the source remains the same.
 
@@ -12,7 +12,7 @@ local pluginName = package:match("^lua%-resty%-(.+)$")  -- "moesif"
 supported_platforms = {"linux", "macosx"}
 source = {
   url = "git://github.com/Moesif/lua-resty-moesif",
-  tag = "1.1.4"
+  tag = "1.1.5"
 }
 
 description = {
@@ -24,8 +24,7 @@ description = {
 dependencies = {
   "lua >= 5.1",
   "luasocket >= 3.0rc1",
-  "lua-cjson >= 2.1.0.6",
-  "luajson >= 1.3.4"
+  "lua-cjson >= 2.1.0.6"
 }
 
 build = {
