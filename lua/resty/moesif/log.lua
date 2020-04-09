@@ -19,7 +19,7 @@ function get_config(premature, config, application_id, debug)
     return
   end
 
-  local sock, parsed_url = connect.get_connection(config, "/v1/config")
+  local sock, parsed_url = connect.get_connection(config, config:get("api_endpoint"), "/v1/config")
 
   -- Prepare the payload
   local payload = string_format(
@@ -141,7 +141,7 @@ local function send_events_batch(config, debug)
       if #queue > 0 then
         -- Getting the configuration for this particular key
         configuration = config_hashes[key]
-        local sock, parsed_url = connect.get_connection(config, "/v1/events/batch")
+        local sock, parsed_url = connect.get_connection(config, config:get("api_endpoint"), "/v1/events/batch")
         local batch_events = {}
         repeat
           local event = table.remove(queue)

@@ -72,6 +72,20 @@ header_filter_by_lua_block  {
 #### __`api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with.
 
+#### 3Scale Application configuration
+
+Additionally, if you're using (3Scale API Management)[https://www.3scale.net/] you could use these configuration options.
+
+#### __`3scale_access_token`__
+(__required__), _string_, 3Scale provider API key to authenticate yourself. You could find this under Account Settings. This is required.
+
+#### __`3scale_user_key`__
+(__required__), _string_, 3Scale user key. You could find this under Integration -> Configuration section. This is required.
+
+#### __`3scale_domain`__
+(__required__), _string_, 3Scale domain name, for example `moesif-admin.3scale.net`. This is required.
+
+
 ## How to use
 
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
