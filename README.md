@@ -1,10 +1,11 @@
 # Moesif Plugin for NGINX OpenResty
 
-NGINX [OpenResty](https://openresty.org/en/) plugin that logs API calls and sends to [Moesif](https://www.moesif.com) for API analytics and log analysis.
+[NGINX](https://www.nginx.com/) [OpenResty](https://openresty.org/en/) plugin that logs API calls to [Moesif](https://www.moesif.com) for API analytics and monitoring.
+This plugin can be used with a generic NGINX OpenResty installation or for API gateways that are built on top of OpenResty such as [3Scale API Gateway](https://www.3scale.net/). 
 
 [Github Repo](https://github.com/Moesif/lua-resty-moesif)
 
-## How to install
+## How to install 
 
 The recommended way to install Moesif is via Luarocks:
 
@@ -19,9 +20,12 @@ Keep in mind OPM is not well maintained and release acceptance may be delayed by
 opm get Moesif/lua-resty-moesif
 ```
 
-## Shared Configuration (ngx.shared)
+## How to use (Generic OpenResty)
 
-The below options are static for all requests. Set these options on the shared dictionary, `ngx.shared.moesif_conf`:
+Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
+Replace `/usr/share/lua/5.1/lua/resty` with the correct lua plugin installation path, if necessary.
+
+_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`_
 
 ```nginx
 lua_shared_dict moesif_conf 2m;
@@ -30,10 +34,85 @@ init_by_lua_block {
    local config = ngx.shared.moesif_conf;
    config:set("application_id", "Your Moesif Application Id")
 }
+
+lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
+lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua";
+
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  # Customer identity variables that Moesif will read downstream
+  set $user_id nil;
+  set $company_id nil;
+
+  # Optionally, identify the user and the company (account)
+  # from a request or response header, query param, NGINX var, etc
+  header_filter_by_lua_block  { 
+    ngx.var.user_id = ngx.req.get_headers()["User-Id"]
+    ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
+  }
+
+  access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
+  body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
+  log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event.lua;
+
+  # Sample Hello World API
+  location /api {
+    add_header Content-Type "application/json";
+    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
 ```
 
+## How to use (3Scale API Gateway)
+
+Installing Moesif plugin for [3Scale API Gateway](https://www.3scale.net/) is the same as vanilla installation except for two changes:
+1. Add 3scale specific configuration options to fetch additional user context from 3scale management API
+2. Replace `send_event.lua`, with `send_event_3Scale.lua` 
+
+Below is a sample configuration for 3scale:
+
+```nginx
+lua_shared_dict moesif_conf 2m;
+
+init_by_lua_block {
+   local config = ngx.shared.moesif_conf;
+   config:set("application_id", "Your Moesif Application Id")
+   config:set("3scale_domain", "YOUR_ACCOUNT-admin.3scale.net")
+   config:set("3scale_access_token", "Your 3scale Access Token")
+}
+
+lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
+lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua";
+
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  # Customer identity variables that Moesif will read downstream
+  # Set automatically from 3scale management API
+  set $user_id nil;
+  set $company_id nil;
+
+  access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
+  body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
+  log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event_3Scale.lua;
+
+  # Sample Hello World API
+  location /api {
+    add_header Content-Type "application/json";
+    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
+```
+
+## Configuration options
+
+Static options that are set once on startup such as in `init_by_lua_block`.
+
 #### __`application_id`__
-(__required__), _string_, Application Id to authenticate with Moesif. This is required.
+(__required__), _string_, Application Id to authenticate with Moesif.
 
 #### __`disable_capture_request_body`__
 (optional) _boolean_, An option to disable logging of request body. `false` by default.
@@ -53,92 +132,64 @@ init_by_lua_block {
 #### __`debug`__
 (optional) _boolean_, Set to true to print debug logs if you're having integration issues.
 
-## Dynamic Variables (ngx.var)
+### 3Scale specific options
 
-The below variables are dynamic for each request. Set these variables on the `ngx.var` dictionary:
+If you installed for [3Scale API Gateway](https://www.3scale.net/) using `send_event_3Scale.lua`, 
+you have additional static options:
+
+#### __`3scale_domain`__
+(__required__), _string_, your full 3Scale admin domain such as  `YOUR_ACCOUNT-admin.3scale.net`.
+
+#### __`3scale_access_token`__
+(__required__), _string_, an admin `ACCESS_TOKEN`, that you can get from your 3scale admin portal.
+
+#### __`3scale_user_id_name`__
+(optional) _string_, The 3scale field name from 3scale's application XML entity used to identify the user in Moesif. 
+This is `id` by default., but other valid examples include `user_account_id` and `service_id`. [More info](https://access.redhat.com/documentation/en-us/red_hat_3scale_api_management/2.8/html-single/admin_portal_guide/index#find-application).
+
+#### __`3scale_auth_api_key`__
+(optional) _string_, If you configured 3scale to authenticate via a single _user_key_ string, set the field name here. 
+This is `user_key` by default. [More info](https://access.redhat.com/documentation/en-us/red_hat_3scale_api_management/2.8/html/administering_the_api_gateway/authentication-patterns#api_key).
+
+#### __`3scale_auth_app_id`__
+(optional) _string_, If you configured 3scale to authenticate via _app_id_ and _app_key_ pair, set app_id field name here.  
+This is `app_id` by default. If set, you need to set `3scale_auth_app_key_pair`. [More info](https://access.redhat.com/documentation/en-us/red_hat_3scale_api_management/2.8/html/administering_the_api_gateway/authentication-patterns#app_id_and_app_key_pair).
+
+#### __`3scale_auth_app_key_pair`__
+(optional) _string_, If you configured 3scale to authenticate via _app_id_ and _app_key_ pair, set app_key field name here. 
+This is `app_key` by default. If set, you need to set `3scale_auth_app_id`. [More info](https://access.redhat.com/documentation/en-us/red_hat_3scale_api_management/2.8/html/administering_the_api_gateway/authentication-patterns#app_id_and_app_key_pair).
+
+## Dynamic variables
+
+Variables that are dynamic for each HTTP request. Set these variables on the `ngx.var` dictionary such as in `header_filter_by_lua_block` 
+or in a `body_filter_by_lua_block`.
 
 ```nginx
 header_filter_by_lua_block  { 
-  ngx.var.user_id = ngx.resp.get_headers()["User-Id"]
+
+  # Read user id from request query param
+  ngx.var.user_id     = ngx.req.arg_user_id
+
+  # Read version from request header
+  ngx.var.api_version = ngx.req.get_headers()["X-API-Version"]
+}
+
+body_filter_by_lua_block  { 
+  # Read company id from response header
+  ngx.var.company_id  = ngx.resp.get_headers()["X-Company-Id"]
 }
 ```
 
 #### __`user_id`__
-(optional) _string_, This enables Moesif to attribute API requests to individual users so you can understand who calling your API. This can be used simultaneously with `company_id`. A company can have one or more users. 
+(optional) _string_, Attribute API requests to individual users so you can track who calling your API. This can also be used with `company_id` to track account level usage.
+_If you installed for 3scale, you do not need to set this field as this is handled automatically_
 
 #### __`company_id`__
-(optional) _string_, If your business is B2B, this enables Moesif to attribute API requests to companies or accounts so you can understand who is calling your API. This can be used simultaneously with `user_id`. A company can have one or more users. 
+(optional) _string_, Attribute API requests to companies or accounts so you can track who calling your API. This can be used with `user_id`. 
+_If you installed for 3scale, you do not need to set this field as this is handled automatically_
 
 #### __`api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with.
-
-#### 3Scale Application configuration
-
-Additionally, if you're using (3Scale API Management)[https://www.3scale.net/] you could use these configuration options.
-
-#### __`3scale_domain`__
-(__required__), _string_, 3Scale domain name, for example `YOUR_ACCOUNT-admin.3scale.net`. This is required.
-
-#### __`3scale_access_token`__
-(__required__), _string_, an `ACCESS_TOKEN`, that you can get from the 3scale admin portal, and also your `ADMIN_PORTAL_DOMAIN`. This is required.
-
-#### __`3scale_user_id_name`__
-(optional) _string_, The key to be used to parse user_id from the application context XML based response like - `id`, `user_account_id`, `service_id`, and more. `id` by default.
-
-#### __`3scale_auth_api_key`__
-(optional) _string_, The key which is used to identify and authenticate application via a single string. `user_key` by default.
-
-#### __`3scale_auth_app_id`__
-(optional) _string_, The key which is used to identify application. `app_id` by default.
-
-#### __`3scale_auth_app_key_pair`__
-(optional) _string_, The key which is used to authenticate the application. `app_key` by default. 
-
-## How to use
-
-Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
-Replace `/usr/share/lua/5.1/lua/resty` with the correct plugin installation path, if needed.
-This may be logged to screen during installation of luarock. If in doubt, find the path via: `find / -name "moesif" -type d`
-
-```nginx
-lua_shared_dict moesif_conf 2m;
-
-init_by_lua_block {
-   local config = ngx.shared.moesif_conf;
-   config:set("application_id", "Your Moesif Application Id")
-}
-
-lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
-lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua";
-
-server {
-  listen 80;
-  resolver 8.8.8.8;
-
-  # Default values for Moesif variables
-  set $user_id nil;
-  set $company_id nil;
-
-  header_filter_by_lua_block  { 
-
-    # Optionally, identify the user such as by a header value
-    ngx.var.user_id = ngx.req.get_headers()["User-Id"]
-
-    # Optionally, identify the company (account) such as by a header value
-    ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
-  }
-
-  access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
-  body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
-  log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event.lua;
-
-  # Sample Hello World API
-  location /api {
-    add_header Content-Type "application/json";
-    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
-  }
-}
-```
 
 ## Example
 An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
