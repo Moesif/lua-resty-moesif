@@ -43,6 +43,7 @@ build = {
     ["lua.resty.moesif.base64"] = "lua/resty/moesif/base64.lua",
     ["lua.resty.moesif.utf8_validator"] = "lua/resty/moesif/utf8_validator.lua",
     ["lua.resty.moesif.read_req_body"] = "lua/resty/moesif/read_req_body.lua",
-    ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua"
+    ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua",
+    ["lua.resty.moesif.moesif_global"] = "lua/resty/moesif/moesif_global.lua"
   }
 }

@@ -76,15 +76,23 @@ header_filter_by_lua_block  {
 
 Additionally, if you're using (3Scale API Management)[https://www.3scale.net/] you could use these configuration options.
 
-#### __`3scale_access_token`__
-(__required__), _string_, 3Scale provider API key to authenticate yourself. You could find this under Account Settings. This is required.
-
-#### __`3scale_user_key`__
-(__required__), _string_, 3Scale user key. You could find this under Integration -> Configuration section. This is required.
-
 #### __`3scale_domain`__
-(__required__), _string_, 3Scale domain name, for example `moesif-admin.3scale.net`. This is required.
+(__required__), _string_, 3Scale domain name, for example `YOUR_ACCOUNT-admin.3scale.net`. This is required.
 
+#### __`3scale_access_token`__
+(__required__), _string_, an `ACCESS_TOKEN`, that you can get from the 3scale admin portal, and also your `ADMIN_PORTAL_DOMAIN`. This is required.
+
+#### __`3scale_user_id_name`__
+(optional) _string_, The key to be used to parse user_id from the application context XML based response like - `id`, `user_account_id`, `service_id`, and more. `id` by default.
+
+#### __`3scale_auth_api_key`__
+(optional) _string_, The key which is used to identify and authenticate application via a single string. `user_key` by default.
+
+#### __`3scale_auth_app_id`__
+(optional) _string_, The key which is used to identify application. `app_id` by default.
+
+#### __`3scale_auth_app_key_pair`__
+(optional) _string_, The key which is used to authenticate the application. `app_key` by default. 
 
 ## How to use
 
