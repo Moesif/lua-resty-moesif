@@ -6,8 +6,8 @@ local _M = {}
 -- @param `url_path`  api endpoint
 -- @return `sock` Socket object
 -- @return `parsed_url` a table with host details like domain name, port, path etc
-function _M.get_connection(config, url_path)
-  local parsed_url = helpers.parse_url(config:get("api_endpoint")..url_path)
+function _M.get_connection(config, api_endpoint, url_path)
+  local parsed_url = helpers.parse_url(api_endpoint..url_path)
   local host = parsed_url.host
   local port = tonumber(parsed_url.port)
   local sock = ngx.socket.tcp()
