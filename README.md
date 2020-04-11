@@ -59,8 +59,12 @@ server {
 
   # Sample Hello World API
   location /api {
-    add_header Content-Type "application/json";
-    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+    proxy_pass http://127.0.0.1:80/hello;
+  }
+
+  location /hello {
+     add_header Content-Type "application/json";
+     return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
   }
 }
 ```
@@ -106,9 +110,13 @@ server {
 
   # Sample Hello World API
   location /api {
-    add_header Content-Type "application/json";
-    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+    proxy_pass http://127.0.0.1:80/hello;
   }
+
+  location /hello {
+      add_header Content-Type "application/json";
+      return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+    }
 }
 ```
 
