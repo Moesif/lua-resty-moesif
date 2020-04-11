@@ -23,9 +23,9 @@ opm get Moesif/lua-resty-moesif
 ## How to use (Generic OpenResty)
 
 Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
-Replace `/usr/share/lua/5.1/lua/resty` with the correct lua plugin installation path, if necessary.
+Replace `/usr/local/openresty/luajit/share/lua/5.1/resty` with the correct lua plugin installation path, if necessary.
 
-_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`_
+_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`. Sometimes luarocks installs packages in multiple locations, just choose one._
 
 ```nginx
 lua_shared_dict moesif_conf 2m;
@@ -49,13 +49,13 @@ server {
   # Optionally, identify the user and the company (account)
   # from a request or response header, query param, NGINX var, etc
   header_filter_by_lua_block  { 
-    ngx.var.user_id = ngx.req.get_headers()["User-Id"]
-    ngx.var.company_id = ngx.req.get_headers()["Company-Id"]
+    ngx.var.user_id = ngx.req.get_headers()["X-User-Id"]
+    ngx.var.company_id = ngx.req.get_headers()["X-Company-Id"]
   }
 
-  access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
-  body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
-  log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event.lua;
+  access_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/read_req_body.lua;
+  body_filter_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/read_res_body.lua;
+  log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/send_event.lua;
 
   # Sample Hello World API
   location /api {
@@ -70,6 +70,11 @@ server {
 Installing Moesif plugin for [3Scale API Gateway](https://www.3scale.net/) is the same as vanilla installation except for two changes:
 1. Add 3scale specific configuration options to fetch additional user context from 3scale management API
 2. Replace `send_event.lua`, with `send_event_3Scale.lua` 
+
+Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
+Replace `/usr/share/lua/5.1/lua/resty` with the correct lua plugin installation path, if necessary.
+
+_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`. Sometimes luarocks installs packages in multiple locations, just choose one._
 
 Below is a sample configuration for 3scale:
 
