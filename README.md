@@ -196,8 +196,49 @@ _If you installed for 3scale, you do not need to set this field as this is handl
 #### __`api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with.
 
+## Troubleshooting
+
+### The request and response body is not logged
+
+You may need to leverage `proxy_pass` to proxy API calls internally through NGINX:
+
+If your original `nginx.conf` looked like:
+
+```nginx
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  location /api {
+    add_header Content-Type "application/json";
+    return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
+```
+
+Replace it with:
+
+```nginx
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  location /api {
+    proxy_pass http://127.0.0.1:80/internal;
+  }
+
+  location /internal {
+     add_header Content-Type "application/json";
+     return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
+```
+
 ## Example
-An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
+Example projects with Moesif are available:
+
+- [Generic OpenResty with Moesif](https://github.com/Moesif/lua-resty-moesif-example)
+- [3Scale API Gateway with Moesif](https://github.com/Moesif/moesif-3scale-api-gateway-example)
 
 Congratulations! If everything was done correctly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
 
