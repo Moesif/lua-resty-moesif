@@ -125,10 +125,16 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 #### __`disable_capture_response_body`__
 (optional) _boolean_, An option to disable logging of response body. `false` by default.
 
-#### __`request_masks`__
+#### __`request_header_masks`__
+(optional) _string_, An option to mask a specific request header fields. Separate multiple fields by comma such as `"header_a, header_b"`
+
+#### __`request_body_masks`__
 (optional) _string_, An option to mask a specific request body fields. Separate multiple fields by comma such as `"field_a, field_b"`
 
-#### __`response_masks`__
+#### __`response_header_masks`__
+(optional) _string_, An option to mask a specific response header fields. Separate multiple fields by comma such as `"header_a, header_b"`
+
+#### __`response_body_masks`__
 (optional) _string_, An option to mask a specific response body fields. Separate multiple fields by comma such as `"field_a, field_b"`
 
 #### __`disable_transaction_id`__

@@ -102,6 +102,32 @@ function decompress_body(body, masks)
   return body_entity, body_transfer_encoding
 end
 
+function mask_headers(headers, mask_fields)
+  local mask_headers = nil
+
+  for k,v in pairs(mask_fields) do
+    mask_fields[k] = v:lower()
+  end
+
+  local ok, mask_result = pcall(mask_body, headers, mask_fields)
+  if not ok then
+    mask_headers = headers
+  else
+    mask_headers = mask_result
+  end
+  return mask_headers
+end
+
+function mask_body_fields(body_masks_config, deprecated_body_masks_config)
+  local masks_fields = nil
+  if next(body_masks_config) == nil then
+    masks_fields = deprecated_body_masks_config
+  else
+    masks_fields = body_masks_config
+  end
+  return masks_fields
+end
+
 -- Prepare message
 function _M.prepare_message(config)
   local moesif_ctx = ngx.ctx.moesif or {}
@@ -147,10 +173,11 @@ function _M.prepare_message(config)
     request_body_entity = nil
   else
     local is_valid_request_body = utf8_validator.validate(moesif_ctx.req_body)
+    local request_body_masks = mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
     if not is_valid_request_body then
-      request_body_entity, req_body_transfer_encoding = decompress_body(moesif_ctx.req_body, split(config:get("request_masks"), ","))
+      request_body_entity, req_body_transfer_encoding = decompress_body(moesif_ctx.req_body, request_body_masks)
     else
-      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, split(config:get("request_masks"), ","))
+      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, request_body_masks)
     end 
   end
 
@@ -158,10 +185,11 @@ function _M.prepare_message(config)
     response_body_entity = nil
   else
     local is_valid_response_body = utf8_validator.validate(moesif_ctx.res_body)
+    local response_body_masks = mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
     if not is_valid_response_body then
-      response_body_entity, rsp_body_transfer_encoding = decompress_body(moesif_ctx.res_body, split(config:get("response_masks"), ","))
+      response_body_entity, rsp_body_transfer_encoding = decompress_body(moesif_ctx.res_body, response_body_masks)
     else
-      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, split(config:get("response_masks"), ","))
+      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, response_body_masks)
     end
   end
 
@@ -177,12 +205,28 @@ function _M.prepare_message(config)
     session_token_entity = nil
   end
 
-  -- Access by log derivative
-  local headers = ngx.req.get_headers()
+
+  local request_headers = nil
+  local response_headers = nil
+  local request_header_masks = split(config:get("request_header_masks"), ",")
+  local response_header_masks = split(config:get("response_header_masks"), ",")
+  
+  if next(request_header_masks) == nil then
+    request_headers = ngx.req.get_headers()
+  else
+    request_headers = mask_headers(ngx.req.get_headers(), request_header_masks)
+  end
+
+  if next(response_header_masks) == nil then
+    response_headers = ngx.resp.get_headers()
+  else
+    response_headers = mask_headers(ngx.resp.get_headers(), response_header_masks)
+  end
+
   -- Add Transaction Id to the request header
   if not config:get("disable_transaction_id") then
-    if headers["X-Moesif-Transaction-Id"] ~= nil then
-      local req_trans_id = headers["X-Moesif-Transaction-Id"]
+    if request_headers["X-Moesif-Transaction-Id"] ~= nil then
+      local req_trans_id = request_headers["X-Moesif-Transaction-Id"]
       if req_trans_id ~= nil and req_trans_id:gsub("%s+", "") ~= "" then
         transaction_id = req_trans_id
       else
@@ -192,13 +236,8 @@ function _M.prepare_message(config)
       transaction_id = ngx.var.request_id
     end
   -- Add Transaction Id to the request header
-  ngx.req.set_header("X-Moesif-Transaction-Id", transaction_id)
+  request_headers["X-Moesif-Transaction-Id"] = transaction_id
   end
-
-
-  -- Response header transaction Id
-  local response_headers
-  response_headers = ngx.resp.get_headers()
 
   -- Add Transaction Id to the response header
   if not config:get("disable_transaction_id") and transaction_id ~= nil then
@@ -222,7 +261,7 @@ function _M.prepare_message(config)
   return {
     request = {
       uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. ngx.var.request_uri,
-      headers = ngx.req.get_headers(),
+      headers = request_headers,
       body = request_body_entity,
       verb = req_get_method(),
       ip_address = client_ip.get_client_ip(ngx.req.get_headers()),
