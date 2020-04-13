@@ -50,8 +50,24 @@ if isempty(config:get("request_masks")) then
   config:set("request_masks", "")
 end
 
+if isempty(config:get("request_body_masks")) then
+    config:set("request_body_masks", "")
+end
+
+if isempty(config:get("request_header_masks")) then
+    config:set("request_header_masks", "")
+end
+
 if isempty(config:get("response_masks")) then
   config:set("response_masks", "")
+end
+
+if isempty(config:get("response_body_masks")) then
+    config:set("response_body_masks", "")
+end
+
+if isempty(config:get("response_header_masks")) then
+    config:set("response_header_masks", "")
 end
 
 if isempty(config:get("batch_size")) then
