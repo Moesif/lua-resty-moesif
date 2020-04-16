@@ -102,8 +102,12 @@ if isempty(config:get("3scale_auth_app_key_pair")) then
   config:set("3scale_auth_app_key_pair", "app_key")
 end
 
+if isempty(config:get("3Scale_cache_ttl")) then
+    config:set("3Scale_cache_ttl", 3600)
+end
+
 -- Get 3Scale Application configuration function
-function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
+function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
 
     if premature then
         return
@@ -112,9 +116,13 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
     local domain_name = string.lower(config:get("3scale_domain"))
     local access_token = config:get("3scale_access_token")
     local sock, parsed_url = nil, nil
+    local auth_key_name
+
     if is_auth_pair_method then 
+        auth_key_name = auth_app_id .. "-" .. auth_app_key_pair
         sock, parsed_url = connect.get_connection(config, "https://" .. domain_name, "/admin/api/applications/find.xml?access_token=" .. access_token .. "&app_id=" .. auth_app_id .. "&app_key=" .. auth_app_key_pair)
     else 
+        auth_key_name = auth_api_key
         sock, parsed_url = connect.get_connection(config, "https://" .. domain_name, "/admin/api/applications/find.xml?access_token=" .. access_token .. "&user_key=" .. auth_api_key)
     end
 
@@ -147,12 +155,37 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
     end
 
     local response_body = config_response:match("(%<.*>)")
-    if is_auth_pair_method then
-        scale_config_response_dict[auth_app_id .. "-" .. auth_app_key_pair] = response_body
-        scale_last_updated_time_dict[auth_app_id .. "-" .. auth_app_key_pair] = os.time()
-    else 
-        scale_config_response_dict[auth_api_key] = response_body
-        scale_last_updated_time_dict[auth_api_key] = os.time()
+    if response_body ~= nil then 
+        local xobject = xml.eval(response_body)
+        local xapplication = xobject:find("application")
+        if xapplication ~= nil then
+            local xtable = {}
+            for k, v in pairs(xapplication) do
+                if v ~= nil and type(v) == "table" then 
+                    xtable[v:tag()] = k
+                end
+            end
+
+            local key = xapplication[xtable[user_id_name]]
+            if key ~= nil then 
+                if debug then
+                    ngx.log(ngx.CRIT, "[moesif] Successfully fetched the userId ")
+                end
+                user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
+            else 
+                if debug then
+                    ngx.log(ngx.CRIT, "[moesif] The user_id_name provided by user does not exist ")
+                end
+            end
+        else
+            if debug then
+                ngx.log(ngx.CRIT, "[moesif] application tag does not exist ")
+            end
+        end
+    else
+        if debug then
+            ngx.log(ngx.CRIT, "[moesif] xml response body does not exist ")
+        end
     end
     return response_body
 end
@@ -171,52 +204,13 @@ function fetch_credentials(auth_key_name, headers, queryparams)
     return fetched_key
 end
 
--- Function to parse XML response
-function parseXML(user_id_name, auth_key_name, debug)
-    local response_body = scale_config_response_dict[auth_key_name]
-    if response_body ~= nil then 
-        local xobject = xml.eval(response_body)
-        local xapplication = xobject:find("application")
-        if xapplication ~= nil then
-            local xtable = {}
-            for k, v in pairs(xapplication) do
-                if v ~= nil and type(v) == "table" then 
-                    xtable[v:tag()] = k
-                end
-            end
-
-            local key = xapplication[xtable[user_id_name]]
-            if key ~= nil then 
-                if debug then
-                    ngx.log(ngx.CRIT, "[moesif] Successfully fetched the userId ")
-                end
-                scale_user_id_dict[auth_key_name] = key[1]
-            else 
-                if debug then
-                    ngx.log(ngx.CRIT, "[moesif] The user_id_name provided by user does not exist ")
-                end
-            end
-        else
-            config:set("3Scale_last_updated_time", os.time())
-            if debug then
-                ngx.log(ngx.CRIT, "[moesif] application tag does not exist ")
-            end
-        end
-    else
-        config:set("3Scale_last_updated_time", os.time())
-        if debug then
-            ngx.log(ngx.CRIT, "[moesif] xml response body does not exist ")
-        end
-    end
-end
-
 -- Set User Id
 function set_user_id(auth_key_name, debug)
-    if nonEmpty(scale_user_id_dict[auth_key_name]) then
+    if nonEmpty(user_id_cache:get(auth_key_name)) then
         if debug then
             ngx.log(ngx.CRIT, "[moesif] Using the previously fetched 3Scale userId ")
         end
-        ngx.var.user_id = scale_user_id_dict[auth_key_name]
+        ngx.var.user_id = user_id_cache:get(auth_key_name)
     else
         if debug then
             ngx.log(ngx.CRIT, "[moesif] No 3Scale userId found ")
@@ -241,30 +235,14 @@ end
 function config_helper(config, user_id_name, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
     local ok, err = nil, nil
     if is_auth_pair_method then 
-        if scale_config_response_dict[auth_app_id .. "-" .. auth_app_key_pair] == nil or (os.time() > (scale_last_updated_time_dict[auth_app_id .. "-" .. auth_app_key_pair] + 3600)) then
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
+        if user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair) == nil then
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
             is_app_config_fetched(ok, err, debug)
         end
     else 
-        if scale_config_response_dict[auth_api_key] == nil or (os.time() > (scale_last_updated_time_dict[auth_api_key] + 3600)) then
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
+        if user_id_cache:get(auth_api_key) == nil then
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
             is_app_config_fetched(ok, err, debug)
-        end
-    end
-    
-    if is_auth_pair_method then
-        if scale_config_response_dict[auth_app_id .. "-" .. auth_app_key_pair] ~= nil then
-            if debug then
-                ngx.log(ngx.CRIT, "[moesif] Using the previously fetched 3Scale application configuration ")
-            end
-            parseXML(user_id_name, auth_app_id .. "-" .. auth_app_key_pair, debug)
-        end
-    else 
-        if scale_config_response_dict[auth_api_key] ~= nil then
-            if debug then
-                ngx.log(ngx.CRIT, "[moesif] Using the previously fetched 3Scale application configuration ")
-            end
-            parseXML(user_id_name, auth_api_key, debug)
         end
     end
 end
@@ -290,32 +268,17 @@ if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_
     auth_app_key_pair = fetch_credentials(auth_app_key_pair_name, req_headers, req_query_params)
 
     -- Authentication Mode
-    local is_auth_pair_method = nil
-    if nonEmpty(auth_api_key) then
-        is_auth_pair_method = false
+    if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
+        config_helper(config, user_id_name, nil, auth_app_id, auth_app_key_pair, true, debug)
+        set_user_id(auth_app_id .. "-" .. auth_app_key_pair, debug)
+    elseif nonEmpty(auth_api_key) then 
+        config_helper(config, user_id_name, auth_api_key, nil, nil, false, debug)
+        set_user_id(auth_api_key, debug)
     else
-        is_auth_pair_method = true
+        if debug then
+            ngx.log(ngx.CRIT, "No 3Scale userId found")
+        end
     end
-
-    if is_auth_pair_method then 
-        if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
-            config_helper(config, user_id_name, nil, auth_app_id, auth_app_key_pair, true, debug)
-            set_user_id(auth_app_id .. "-" .. auth_app_key_pair, debug)
-        else
-            if debug then
-                ngx.log(ngx.CRIT, "No 3Scale userId found")
-            end
-        end 
-    else 
-        if nonEmpty(auth_api_key) then 
-            config_helper(config, user_id_name, auth_api_key, nil, nil, false, debug)
-            set_user_id(auth_api_key, debug)
-        else
-            if debug then
-                ngx.log(ngx.CRIT, "No 3Scale userId found")
-            end
-        end 
-    end 
 else
     if config:get("debug") then 
         ngx.log(ngx.CRIT, "3Scale accessToken or userKey or domainName is not provided")  

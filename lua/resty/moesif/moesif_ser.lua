@@ -244,20 +244,6 @@ function _M.prepare_message(config)
     response_headers["X-Moesif-Transaction-Id"] = transaction_id
   end
 
-  if (response_headers["content-encoding"] ~= nil) and (response_headers["content-encoding"] == 'gzip') then 
-    local ok, decompressed_body = pcall(zzlib.gunzip, response_body_entity)
-      if not ok then
-        if config:get("debug") then
-          ngx.log(ngx.CRIT, "[moesif] failed to decompress body: ", decompressed_body)
-        end
-      else
-        if config:get("debug") then
-          ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
-        end
-        response_body_entity = decompressed_body
-      end
-  end
-
   return {
     request = {
       uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. ngx.var.request_uri,
