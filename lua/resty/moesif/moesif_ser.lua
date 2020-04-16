@@ -87,7 +87,7 @@ function decompress_body(body, masks)
     if is_valid_json(decompressed_body) then 
         body_entity, body_transfer_encoding = process_data(decompressed_body, masks)
     else 
-        body_entity, body_transfer_encoding = base64_encode_body(body)
+        body_entity, body_transfer_encoding = base64_encode_body(decompressed_body)
     end
   end
   return body_entity, body_transfer_encoding
