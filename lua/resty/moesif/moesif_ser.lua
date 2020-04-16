@@ -9,10 +9,8 @@ local random = math.random
 local transaction_id = nil
 local client_ip = require "client_ip"
 local zzlib = require "zzlib"
-local utf8_validator = require "utf8_validator"
 local base64 = require "base64"
 local _M = {}
-
 
 -- Split the string
 local function split(str, character)
@@ -46,39 +44,28 @@ function base64_encode_body(body)
   return base64.encode(body), 'base64'
 end
 
-function transform_body(body)
-  if type(body) == "string" and string.sub(body, 1, 1) == "{" or string.sub(body, 1, 1) == "[" then
-    local decoded_body = cjson_safe.decode(body)
-    if not decoded_body then 
-      return base64_encode_body(body)
-    else
-      return decoded_body, 'json' 
-    end
-  else
-    return base64_encode_body(body)
-  end
+function is_valid_json(body)
+    return type(body) == "string" 
+        and string.sub(body, 1, 1) == "{" or string.sub(body, 1, 1) == "["
 end
 
 function process_data(body, mask_fields)
   local body_entity = nil
   local body_transfer_encoding = nil
-  
-  if next(mask_fields) == nil then
-    body_entity, body_transfer_encoding = transform_body(body)
+  local is_deserialised, deserialised_body = pcall(cjson_safe.decode, body)
+  if not is_deserialised  then
+      body_entity, body_transfer_encoding = base64_encode_body(body)
   else
-    local is_decoded, decoded_body = pcall(cjson_safe.decode, body)
-    if not is_decoded then 
-      body_entity, body_transfer_encoding = transform_body(body)
-    elseif (decoded_body ~= nil) then
-      local ok, mask_result = pcall(mask_body, decoded_body, mask_fields)
-      if not ok then
-        body_entity, body_transfer_encoding = transform_body(body)
+      if next(mask_fields) == nil then
+          body_entity, body_transfer_encoding = deserialised_body, 'json' 
       else
-        body_entity, body_transfer_encoding = transform_body(cjson.encode(mask_result))
+          local ok, mask_result = pcall(mask_body, deserialised_body, mask_fields)
+          if not ok then
+            body_entity, body_transfer_encoding = deserialised_body, 'json' 
+          else
+            body_entity, body_transfer_encoding = mask_result, 'json' 
+          end
       end
-    else
-      body_entity, body_transfer_encoding = transform_body(body)
-    end 
   end
   return body_entity, body_transfer_encoding
 end
@@ -97,7 +84,11 @@ function decompress_body(body, masks)
     if debug then
       ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
     end
-    body_entity, body_transfer_encoding = process_data(decompressed_body, masks)
+    if is_valid_json(decompressed_body) then 
+        body_entity, body_transfer_encoding = process_data(decompressed_body, masks)
+    else 
+        body_entity, body_transfer_encoding = base64_encode_body(body)
+    end
   end
   return body_entity, body_transfer_encoding
 end
@@ -119,13 +110,11 @@ function mask_headers(headers, mask_fields)
 end
 
 function mask_body_fields(body_masks_config, deprecated_body_masks_config)
-  local masks_fields = nil
   if next(body_masks_config) == nil then
-    masks_fields = deprecated_body_masks_config
+    return deprecated_body_masks_config
   else
-    masks_fields = body_masks_config
+    return body_masks_config
   end
-  return masks_fields
 end
 
 -- Prepare message
@@ -139,6 +128,8 @@ function _M.prepare_message(config)
   local api_version
   local req_body_transfer_encoding = nil
   local rsp_body_transfer_encoding = nil
+  local request_headers = ngx.req.get_headers()
+  local response_headers = ngx.resp.get_headers()
 
   -- User Id
   if ngx.var.credentials ~= nil and ngx.var.credentials.app_id ~= nil then
@@ -172,25 +163,39 @@ function _M.prepare_message(config)
   if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
     request_body_entity = nil
   else
-    local is_valid_request_body = utf8_validator.validate(moesif_ctx.req_body)
     local request_body_masks = mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
-    if not is_valid_request_body then
+    if request_headers["content-type"] ~= nil and string.find(request_headers["content-type"], "json") and is_valid_json(moesif_ctx.req_body) then 
+      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, request_body_masks)
+    elseif request_headers["content-encoding"] ~= nil and type(moesif_ctx.req_body) == "string" and string.find(request_headers["content-encoding"], "gzip") then
       request_body_entity, req_body_transfer_encoding = decompress_body(moesif_ctx.req_body, request_body_masks)
     else
-      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, request_body_masks)
-    end 
+      request_body_entity, req_body_transfer_encoding = base64_encode_body(moesif_ctx.req_body)
+    end
   end
 
   if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") then
     response_body_entity = nil
   else
-    local is_valid_response_body = utf8_validator.validate(moesif_ctx.res_body)
     local response_body_masks = mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
-    if not is_valid_response_body then
+    if response_headers["content-type"] ~= nil and is_valid_json(moesif_ctx.res_body) then 
+      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, response_body_masks)
+    elseif response_headers["content-encoding"] ~= nil and type(moesif_ctx.res_body) == "string" and string.find(response_headers["content-encoding"], "gzip") then
       response_body_entity, rsp_body_transfer_encoding = decompress_body(moesif_ctx.res_body, response_body_masks)
     else
-      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, response_body_masks)
+      response_body_entity, rsp_body_transfer_encoding = base64_encode_body(moesif_ctx.res_body)
     end
+  end
+
+  -- Headers
+  local request_header_masks = split(config:get("request_header_masks"), ",")
+  local response_header_masks = split(config:get("response_header_masks"), ",")
+  
+  if next(request_header_masks) ~= nil then
+    request_headers = mask_headers(ngx.req.get_headers(), request_header_masks)
+  end
+
+  if next(response_header_masks) ~= nil then
+    response_headers = mask_headers(ngx.resp.get_headers(), response_header_masks)
   end
 
   if ngx.ctx.authenticated_credential ~= nil then
@@ -203,24 +208,6 @@ function _M.prepare_message(config)
     end
   else
     session_token_entity = nil
-  end
-
-
-  local request_headers = nil
-  local response_headers = nil
-  local request_header_masks = split(config:get("request_header_masks"), ",")
-  local response_header_masks = split(config:get("response_header_masks"), ",")
-  
-  if next(request_header_masks) == nil then
-    request_headers = ngx.req.get_headers()
-  else
-    request_headers = mask_headers(ngx.req.get_headers(), request_header_masks)
-  end
-
-  if next(response_header_masks) == nil then
-    response_headers = ngx.resp.get_headers()
-  else
-    response_headers = mask_headers(ngx.resp.get_headers(), response_header_masks)
   end
 
   -- Add Transaction Id to the request header
