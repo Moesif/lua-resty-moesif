@@ -106,6 +106,14 @@ if isempty(config:get("3Scale_cache_ttl")) then
     config:set("3Scale_cache_ttl", 3600)
 end
 
+if isempty(config:get("batch_max_time")) then
+    config:set("batch_max_time", 5)
+end
+
+if isempty(config:get("is_batch_job_scheduled")) then
+    config:set("is_batch_job_scheduled", false)
+end
+
 -- Get 3Scale Application configuration function
 function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
 

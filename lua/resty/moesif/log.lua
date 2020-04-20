@@ -276,14 +276,8 @@ function _M.execute(config, message, debug)
   local scheduleJob
   scheduleJob = function(premature)
     if not premature then
-      local sendBatchOk, sendBatchErr = ngx.timer.at(0, send_events_batch, config, debug)
-      if not sendBatchOk then
-        if debug then
-          ngx.log(ngx.ERR, "[moesif] Error when sending events in batch:  ", sendBatchErr)
-        end
-      end
-
-      local ok, err = ngx.timer.at(5, scheduleJob)
+      send_events_batch(false, config, debug)
+      local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob)
       if not ok then
           ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
           return
@@ -291,9 +285,13 @@ function _M.execute(config, message, debug)
     end
   end
 
-  local scheduleJobOk, scheduleJobErr = ngx.timer.at(5, scheduleJob)
-  if not scheduleJobOk then
-     ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
+  if not config:get("is_batch_job_scheduled") then
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob)
+    if not scheduleJobOk then
+      ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
+    else
+      config:set("is_batch_job_scheduled", true)
+    end
   end
 end
 
