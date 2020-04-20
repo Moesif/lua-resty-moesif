@@ -69,6 +69,13 @@ if isempty(config:get("debug")) then
   config:set("debug", false)
 end
 
+if isempty(config:get("batch_max_time")) then
+  config:set("batch_max_time", 5)
+end
+
+if isempty(config:get("is_batch_job_scheduled")) then
+  config:set("is_batch_job_scheduled", false)
+end
 
 -- Log Event
 if isempty(config:get("application_id")) then

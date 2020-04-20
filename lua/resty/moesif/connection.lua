@@ -17,12 +17,12 @@ function _M.get_connection(config, api_endpoint, url_path)
   local ok, err = sock:connect(host, port)
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
+      ngx.log(ngx.ERR, "[moesif] failed to connect to " .. host .. ":" .. tostring(port) .. ": ", err)
     end
     return
   else
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] Successfully created connection " , ok)
+      ngx.log(ngx.DEBUG, "[moesif] Successfully created connection " , ok)
     end
   end
 
@@ -30,7 +30,7 @@ function _M.get_connection(config, api_endpoint, url_path)
     local _, err = sock:sslhandshake(true, host, false)
     if err then
       if debug then
-        ngx.log(ngx.CRIT, "[moesif] failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
+        ngx.log(ngx.ERR, "[moesif] failed to do SSL handshake with " .. host .. ":" .. tostring(port) .. ": ", err)
       end
     end
   end
