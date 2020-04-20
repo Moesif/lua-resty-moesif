@@ -30,11 +30,11 @@ function get_config(premature, config, application_id, debug)
   local ok, err = sock:send(payload .. "\r\n")
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+      ngx.log(ngx.ERR, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
     end
   else
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] Successfully send request to fetch the application configuration " , ok)
+      ngx.log(ngx.DEBUG, "[moesif] Successfully send request to fetch the application configuration " , ok)
     end
   end
 
@@ -44,12 +44,12 @@ function get_config(premature, config, application_id, debug)
   ok, err = sock:setkeepalive(config:get("keepalive"))
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+      ngx.log(ngx.ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
     end
     return
    else
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] success keep-alive", ok)
+      ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
     end
   end
 
@@ -84,11 +84,11 @@ local function generate_post_payload(parsed_url, message, application_id, debug)
   local ok, compressed_body = pcall(compress["CompressDeflate"], compress, body)
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to compress body: ", compressed_body)
+      ngx.log(ngx.ERR, "[moesif] failed to compress body: ", compressed_body)
     end
   else
     if debug then
-      ngx.log(ngx.CRIT, " [moesif]  ", "successfully compressed body")
+      ngx.log(ngx.DEBUG, " [moesif]  ", "successfully compressed body")
     end
     body = compressed_body
   end
@@ -105,11 +105,11 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
   local ok, err = sock:send(generate_post_payload(parsed_url, batch_events, application_id, debug) .. "\r\n")
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to send data to " .. host .. ":" .. tostring(port) .. ": ", err)
+      ngx.log(ngx.ERR, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
     end
   else
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] Events sent successfully " , ok)
+      ngx.log(ngx.DEBUG, "[moesif] Events sent successfully " , ok)
     end
   end
 
@@ -123,19 +123,22 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
     local resp =  get_config(false, config, application_id, debug)
     if not resp then
       if debug then
-        ngx.log(ngx.CRIT, "[moesif] failed to get application config, setting the sample_rate to default ", err)
+        ngx.log(ngx.ERR, "[moesif] failed to get application config, setting the sample_rate to default ", err)
       end
     else
       if debug then
-        ngx.log(ngx.CRIT, "[moesif] successfully fetched the application configuration" , ok)
+        ngx.log(ngx.DEBUG, "[moesif] successfully fetched the application configuration" , ok)
       end
     end
   end
 end
 
 -- Send Events Batch
-local function send_events_batch(config, debug)
+local function send_events_batch(premature, config, debug)
 
+  if premature then
+    return
+  end
   repeat
     for key, queue in pairs(queue_hashes) do
       if #queue > 0 then
@@ -146,13 +149,13 @@ local function send_events_batch(config, debug)
         repeat
           local event = table.remove(queue)
           table.insert(batch_events, event)
-          if (#batch_events == configuration.batch_size) then
+          if (#batch_events == configuration:get("batch_size")) then
             send_payload(sock, parsed_url, batch_events, config, debug)
           else if(#queue ==0 and #batch_events > 0) then
               send_payload(sock, parsed_url, batch_events, config, debug)
             end
           end
-        until #batch_events == configuration.batch_size or next(queue) == nil
+        until #batch_events == configuration:get("batch_size") or next(queue) == nil
 
         if #queue > 0 then
           has_events = true
@@ -163,12 +166,12 @@ local function send_events_batch(config, debug)
         local ok, err = sock:setkeepalive(config:get("keepalive"))
         if not ok then
           if debug then
-            ngx.log(ngx.CRIT, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+            ngx.log(ngx.ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
           end
           return
          else
           if debug then
-            ngx.log(ngx.CRIT, "[moesif] success keep-alive", ok)
+            ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
           end
         end
       else
@@ -179,7 +182,7 @@ local function send_events_batch(config, debug)
 
   if not has_events then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] No events to read from the queue")
+      ngx.log(ngx.DEBUG, "[moesif] No events to read from the queue")
     end
   end
 end
@@ -205,14 +208,13 @@ local function log(premature, config, message, hash_key, debug)
 
   if sampling_rate >= random_percentage then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] Event added to the queue")
+      ngx.log(ngx.DEBUG, "[moesif] Event added to the queue")
     end
     message["weight"] = (sampling_rate == 0 and 1 or math.floor(100 / sampling_rate))
     table.insert(queue_hashes[hash_key], message)
-    send_events_batch(config, debug)
   else
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
+      ngx.log(ngx.DEBUG, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
     end
   end
 end
@@ -240,11 +242,11 @@ function _M.execute(config, message, debug)
       local ok, err = ngx.timer.at(0, get_config, config, application_id, debug)
       if not ok then
         if debug then
-          ngx.log(ngx.CRIT, "[moesif] failed to get application config, setting the sample_rate to default ", err)
+          ngx.log(ngx.ERR, "[moesif] failed to get application config, setting the sample_rate to default ", err)
         end
       else
         if debug then
-          ngx.log(ngx.CRIT, "[moesif] successfully fetched the application configuration" , ok)
+          ngx.log(ngx.DEBUG, "[moesif] successfully fetched the application configuration" , ok)
         end
       end
     end
@@ -266,8 +268,32 @@ function _M.execute(config, message, debug)
   local ok, err = ngx.timer.at(0, log, config, message, hash_key, debug)
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to create timer: ", err)
+      ngx.log(ngx.ERR, "[moesif] failed to create timer: ", err)
     end
+  end
+
+  -- Schedule Events batch job
+  local scheduleJob
+  scheduleJob = function(premature)
+    if not premature then
+      local sendBatchOk, sendBatchErr = ngx.timer.at(0, send_events_batch, config, debug)
+      if not sendBatchOk then
+        if debug then
+          ngx.log(ngx.ERR, "[moesif] Error when sending events in batch:  ", sendBatchErr)
+        end
+      end
+
+      local ok, err = ngx.timer.at(5, scheduleJob)
+      if not ok then
+          ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
+          return
+      end
+    end
+  end
+
+  local scheduleJobOk, scheduleJobErr = ngx.timer.at(5, scheduleJob)
+  if not scheduleJobOk then
+     ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
   end
 end
 

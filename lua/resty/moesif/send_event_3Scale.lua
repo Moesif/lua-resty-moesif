@@ -133,11 +133,11 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
     local ok, err = sock:send(payload .. "\r\n")
     if not ok then
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+            ngx.log(ngx.ERR, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
         end
     else
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] Successfully send request to fetch 3Scale application configuration " , ok)
+            ngx.log(ngx.DEBUG, "[moesif] Successfully send request to fetch 3Scale application configuration " , ok)
         end
     end
 
@@ -146,11 +146,11 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
     ok, err = sock:setkeepalive(10000)
     if not ok then
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+            ngx.log(ngx.ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
         end
     else
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] success keep-alive", ok)
+            ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
         end
     end
 
@@ -169,22 +169,22 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
             local key = xapplication[xtable[user_id_name]]
             if key ~= nil then 
                 if debug then
-                    ngx.log(ngx.CRIT, "[moesif] Successfully fetched the userId ")
+                    ngx.log(ngx.DEBUG, "[moesif] Successfully fetched the userId ")
                 end
                 user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
             else 
                 if debug then
-                    ngx.log(ngx.CRIT, "[moesif] The user_id_name provided by user does not exist ")
+                    ngx.log(ngx.DEBUG, "[moesif] The user_id_name provided by user does not exist ")
                 end
             end
         else
             if debug then
-                ngx.log(ngx.CRIT, "[moesif] application tag does not exist ")
+                ngx.log(ngx.DEBUG, "[moesif] application tag does not exist ")
             end
         end
     else
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] xml response body does not exist ")
+            ngx.log(ngx.DEBUG, "[moesif] xml response body does not exist ")
         end
     end
     return response_body
@@ -208,12 +208,12 @@ end
 function set_user_id(auth_key_name, debug)
     if nonEmpty(user_id_cache:get(auth_key_name)) then
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] Using the previously fetched 3Scale userId ")
+            ngx.log(ngx.DEBUG, "[moesif] Using the previously fetched 3Scale userId ")
         end
         ngx.var.user_id = user_id_cache:get(auth_key_name)
     else
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] No 3Scale userId found ")
+            ngx.log(ngx.DEBUG, "[moesif] No 3Scale userId found ")
         end
     end
 end
@@ -222,11 +222,11 @@ end
 function is_app_config_fetched(ok, err, debug)
     if not ok then
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] failed to get 3Scale application config ", err)
+            ngx.log(ngx.ERR, "[moesif] failed to get 3Scale application config ", err)
         end
     else
         if debug then
-            ngx.log(ngx.CRIT, "[moesif] successfully fetched the 3Scale application configuration" , ok)
+            ngx.log(ngx.DEBUG, "[moesif] successfully fetched the 3Scale application configuration" , ok)
         end
     end
 end
@@ -276,12 +276,12 @@ if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_
         set_user_id(auth_api_key, debug)
     else
         if debug then
-            ngx.log(ngx.CRIT, "No 3Scale userId found")
+            ngx.log(ngx.DEBUG, "No 3Scale userId found")
         end
     end
 else
     if config:get("debug") then 
-        ngx.log(ngx.CRIT, "3Scale accessToken or userKey or domainName is not provided")  
+        ngx.log(ngx.ERR, "3Scale accessToken or userKey or domainName is not provided")  
     end
 end
 
