@@ -4,6 +4,7 @@ local string_format = string.format
 local configuration = nil
 local config_hashes = {}
 local queue_hashes = {}
+local queue_scheduled_time = os.time{year=1970, month=1, day=1, hour=0}
 local moesif_events = "moesif_events_"
 local has_events = false
 local ngx_md5 = ngx.md5
@@ -270,6 +271,20 @@ local function log(premature, config, message, hash_key, debug)
   end
 end
 
+-- Schedule Events batch job
+function scheduleJob(premature, config, debug)
+  if not premature then
+    if debug then
+      ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
+    end
+    send_events_batch(false, config, debug)
+    local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, debug)
+    if not ok then
+        ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
+        return
+    end
+  end
+end
 
 function _M.execute(config, message, debug)
   -- Get Application Id
@@ -337,36 +352,28 @@ function _M.execute(config, message, debug)
     end
   end
 
-  -- Schedule Events batch job
-  local scheduleJob
-  scheduleJob = function(premature)
-    if not premature then
-      if debug then
-        ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
-      end
-      send_events_batch(false, config, debug)
-      local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob)
-      if not ok then
-          ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
-          return
-      end
-    end
+  if debug then
+    ngx.log(ngx.ERR, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(queue_scheduled_time))
   end
 
-  if not config:get("is_batch_job_scheduled") then
+  if (os.time() > queue_scheduled_time + 2 * config:get("batch_max_time")) then
     
     if debug then
       ngx.log(ngx.ERR, "[moesif] Batch Job is not scheduled, scheduling the job  - ")
     end
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, debug)
     if not scheduleJobOk then
       ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
       if debug then
-        ngx.log(ngx.ERR, "[moesif] Batch Job is scheduled successfully  - ")
+        ngx.log(ngx.ERR, "[moesif] Batch Job is scheduled successfully, updating the last_batch_scheduled_time  - ")
       end
-      config:set("is_batch_job_scheduled", true)
+      queue_scheduled_time = os.time()
+    end
+  else
+    if debug then
+      ngx.log(ngx.ERR, "[moesif] Batch Job is already scheduled  - ")
     end
   end
 end
