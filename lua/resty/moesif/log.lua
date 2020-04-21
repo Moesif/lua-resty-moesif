@@ -129,12 +129,12 @@ local function generate_post_payload(config, parsed_url, message, application_id
 
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.14", "deflate", #body, body)
+      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.17", "deflate", #body, body)
     ngx.log(ngx.ERR, "[moesif] Sending the payload with compression  - " , type(payload))
   else 
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.14", #body, body)
+      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.17", #body, body)
     ngx.log(ngx.ERR, "[moesif] Sending the payload without compression - " , type(payload))
   end
 
