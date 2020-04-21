@@ -136,7 +136,7 @@ function dump(o)
   end
 
 -- Get 3Scale Application configuration function
-function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
+function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, user_id_cache, company_id_cache, debug)
 
     if premature then
         return
@@ -218,7 +218,7 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
             local key = xapplication[xtable[user_id_name]]
             if key ~= nil then 
                 if debug then
-                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the userId from the application context")
+                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the userId from the application context", key[1])
                 end
                 user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
             else 
@@ -230,7 +230,7 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
             local companyKey = xapplication[xtable[company_id_name]]
             if companyKey ~= nil then 
                 if debug then
-                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the companyId from the application context ")
+                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the companyId from the application context ", companyKey[1])
                 end
                 company_id_cache:set(auth_key_name, companyKey[1], config:get("3Scale_cache_ttl"))
             else 
@@ -319,7 +319,7 @@ function config_helper(config, user_id_name, company_id_name, auth_api_key, auth
             if debug then 
                 ngx.log(ngx.ERR, "[moesif] Fetching the 3Scale config using App_Id and App_Key pair method - ", auth_app_id .. "-" .. auth_app_key_pair)
             end
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, user_id_cache, company_id_cache, debug)
             is_app_config_fetched(ok, err, debug)
         end
     else 
@@ -327,7 +327,7 @@ function config_helper(config, user_id_name, company_id_name, auth_api_key, auth
             if debug then 
                 ngx.log(ngx.ERR, "[moesif] Fetching the 3Scale config using API Key (user_key) method - ", auth_api_key)
             end
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, user_id_cache, company_id_cache, debug)
             is_app_config_fetched(ok, err, debug)
         end
     end
