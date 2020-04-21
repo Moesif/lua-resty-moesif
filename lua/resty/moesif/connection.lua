@@ -22,7 +22,7 @@ function _M.get_connection(config, api_endpoint, url_path)
     return
   else
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] Successfully created connection " , ok)
+      ngx.log(ngx.ERR, "[moesif] Successfully created connection " , ok)
     end
   end
 

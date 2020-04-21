@@ -77,6 +77,10 @@ if isempty(config:get("is_batch_job_scheduled")) then
   config:set("is_batch_job_scheduled", false)
 end
 
+if isempty(config:get("enable_compression")) then
+  config:set("enable_compression", false)
+end
+
 -- Log Event
 if isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");

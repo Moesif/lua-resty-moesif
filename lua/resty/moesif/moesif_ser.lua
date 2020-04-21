@@ -12,6 +12,19 @@ local zzlib = require "zzlib"
 local base64 = require "base64"
 local _M = {}
 
+function dump(o)
+  if type(o) == 'table' then
+     local s = '{ '
+     for k,v in pairs(o) do
+        if type(k) ~= 'number' then k = '"'..k..'"' end
+        s = s .. '['..k..'] = ' .. dump(v) .. ','
+     end
+     return s .. '} '
+  else
+     return tostring(o)
+  end
+end
+
 -- Split the string
 local function split(str, character)
   local result = {}
@@ -77,12 +90,12 @@ function decompress_body(body, masks)
   local ok, decompressed_body = pcall(zzlib.gunzip, body)
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to decompress body: ", decompressed_body)
+      ngx.log(ngx.ERR, "[moesif] failed to decompress body: ", decompressed_body)
     end
     body_entity, body_transfer_encoding = base64_encode_body(body)
   else
     if debug then
-      ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
+      ngx.log(ngx.ERR, " [moesif]  ", "successfully decompressed body: ")
     end
     if is_valid_json(decompressed_body) then 
         body_entity, body_transfer_encoding = process_data(decompressed_body, masks)
@@ -206,6 +219,8 @@ function _M.prepare_message(config)
     else
       session_token_entity = nil
     end
+  elseif ngx.ctx.moesif_session_token ~= nil then
+    session_token_entity = tostring(ngx.ctx.moesif_session_token)
   else
     session_token_entity = nil
   end
