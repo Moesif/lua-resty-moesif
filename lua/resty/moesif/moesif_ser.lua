@@ -206,6 +206,8 @@ function _M.prepare_message(config)
     else
       session_token_entity = nil
     end
+  elseif ngx.ctx.moesif_session_token ~= nil then
+    session_token_entity = tostring(ngx.ctx.moesif_session_token)
   else
     session_token_entity = nil
   end

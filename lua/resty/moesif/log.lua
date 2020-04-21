@@ -196,9 +196,9 @@ local function send_events_batch(premature, config, debug)
           end
           return
          else
-          if debug then
-            ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
-          end
+          -- if debug then
+          --   ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
+          -- end
         end
       else
         has_events = false

@@ -221,7 +221,7 @@ function set_user_id(auth_key_name, debug)
         ngx.var.user_id = user_id_cache:get(auth_key_name)
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] No 3Scale userId found ")
+            ngx.log(ngx.DEBUG, "[moesif] No previously fetched 3Scale userId found ")
         end
     end
 end
@@ -277,14 +277,16 @@ if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_
 
     -- Authentication Mode
     if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
+        ngx.ctx.moesif_session_token = auth_app_key_pair
         config_helper(config, user_id_name, nil, auth_app_id, auth_app_key_pair, true, debug)
         set_user_id(auth_app_id .. "-" .. auth_app_key_pair, debug)
     elseif nonEmpty(auth_api_key) then 
+        ngx.ctx.moesif_session_token = auth_api_key
         config_helper(config, user_id_name, auth_api_key, nil, nil, false, debug)
         set_user_id(auth_api_key, debug)
     else
         if debug then
-            ngx.log(ngx.DEBUG, "No 3Scale userId found")
+            ngx.log(ngx.DEBUG, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided.")
         end
     end
 else
