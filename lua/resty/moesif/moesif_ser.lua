@@ -77,12 +77,12 @@ function decompress_body(body, masks)
   local ok, decompressed_body = pcall(zzlib.gunzip, body)
   if not ok then
     if debug then
-      ngx.log(ngx.CRIT, "[moesif] failed to decompress body: ", decompressed_body)
+      ngx.log(ngx.ERR, "[moesif] failed to decompress body: ", decompressed_body)
     end
     body_entity, body_transfer_encoding = base64_encode_body(body)
   else
     if debug then
-      ngx.log(ngx.CRIT, " [moesif]  ", "successfully decompressed body: ")
+      ngx.log(ngx.ERR, " [moesif]  ", "successfully decompressed body: ")
     end
     if is_valid_json(decompressed_body) then 
         body_entity, body_transfer_encoding = process_data(decompressed_body, masks)

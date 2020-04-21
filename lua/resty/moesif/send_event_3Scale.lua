@@ -90,6 +90,10 @@ if isempty(config:get("3scale_user_id_name")) then
   config:set("3scale_user_id_name", "id")
 end
 
+if isempty(config:get("3scale_company_id_name")) then
+    config:set("3scale_company_id_name", "user_account_id")
+end
+
 if isempty(config:get("3scale_auth_api_key")) then
   config:set("3scale_auth_api_key", "user_key")
 end
@@ -115,7 +119,7 @@ if isempty(config:get("is_batch_job_scheduled")) then
 end
 
 -- Get 3Scale Application configuration function
-function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
+function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
 
     if premature then
         return
@@ -145,7 +149,7 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
         end
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] Successfully send request to fetch 3Scale application configuration " , ok)
+            ngx.log(ngx.ERR, "[moesif] Successfully send request to fetch 3Scale application configuration " , ok)
         end
     end
 
@@ -158,7 +162,7 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
         end
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
+            ngx.log(ngx.ERR, "[moesif] success keep-alive", ok)
         end
     end
 
@@ -177,22 +181,34 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
             local key = xapplication[xtable[user_id_name]]
             if key ~= nil then 
                 if debug then
-                    ngx.log(ngx.DEBUG, "[moesif] Successfully fetched the userId ")
+                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the userId ")
                 end
                 user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
             else 
                 if debug then
-                    ngx.log(ngx.DEBUG, "[moesif] The user_id_name provided by user does not exist ")
+                    ngx.log(ngx.ERR, "[moesif] The user_id_name provided by the user does not exist ")
+                end
+            end
+
+            local companyKey = xapplication[xtable[company_id_name]]
+            if companyKey ~= nil then 
+                if debug then
+                    ngx.log(ngx.ERR, "[moesif] Successfully fetched the companyId ")
+                end
+                company_id_cache:set(auth_key_name, companyKey[1], config:get("3Scale_cache_ttl"))
+            else 
+                if debug then
+                    ngx.log(ngx.ERR, "[moesif] The company_id_name provided by the user does not exist ")
                 end
             end
         else
             if debug then
-                ngx.log(ngx.DEBUG, "[moesif] application tag does not exist ")
+                ngx.log(ngx.ERR, "[moesif] application tag does not exist ")
             end
         end
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] xml response body does not exist ")
+            ngx.log(ngx.ERR, "[moesif] xml response body does not exist ")
         end
     end
     return response_body
@@ -216,12 +232,26 @@ end
 function set_user_id(auth_key_name, debug)
     if nonEmpty(user_id_cache:get(auth_key_name)) then
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] Using the previously fetched 3Scale userId ")
+            ngx.log(ngx.ERR, "[moesif] Using the previously fetched 3Scale userId ")
         end
         ngx.var.user_id = user_id_cache:get(auth_key_name)
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] No previously fetched 3Scale userId found ")
+            ngx.log(ngx.ERR, "[moesif] No previously fetched 3Scale userId found ")
+        end
+    end
+end
+
+-- Set Company Id
+function set_company_id(auth_key_name, debug)
+    if nonEmpty(company_id_cache:get(auth_key_name)) then
+        if debug then
+            ngx.log(ngx.ERR, "[moesif] Using the previously fetched 3Scale companyId ")
+        end
+        ngx.var.company_id = company_id_cache:get(auth_key_name)
+    else
+        if debug then
+            ngx.log(ngx.ERR, "[moesif] No previously fetched 3Scale companyId found ")
         end
     end
 end
@@ -234,22 +264,22 @@ function is_app_config_fetched(ok, err, debug)
         end
     else
         if debug then
-            ngx.log(ngx.DEBUG, "[moesif] successfully fetched the 3Scale application configuration" , ok)
+            ngx.log(ngx.ERR, "[moesif] successfully fetched the 3Scale application configuration" , ok)
         end
     end
 end
 
 -- 3Scale application configuration helper function
-function config_helper(config, user_id_name, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
+function config_helper(config, user_id_name, company_id_name, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, debug)
     local ok, err = nil, nil
     if is_auth_pair_method then 
         if user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair) == nil then
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
             is_app_config_fetched(ok, err, debug)
         end
     else 
         if user_id_cache:get(auth_api_key) == nil then
-            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, debug)
+            ok, err = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, debug)
             is_app_config_fetched(ok, err, debug)
         end
     end
@@ -262,6 +292,7 @@ if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_
     local auth_app_id = nil
     local auth_app_key_pair = nil
     local user_id_name = string.lower(config:get("3scale_user_id_name"))
+    local company_id_name = string.lower(config:get("3scale_company_id_name"))
     local auth_api_key_name = string.lower(config:get("3scale_auth_api_key"))
     local auth_app_id_name = string.lower(config:get("3scale_auth_app_id"))
     local auth_app_key_pair_name = string.lower(config:get("3scale_auth_app_key_pair"))
@@ -278,15 +309,17 @@ if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_
     -- Authentication Mode
     if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
         ngx.ctx.moesif_session_token = auth_app_key_pair
-        config_helper(config, user_id_name, nil, auth_app_id, auth_app_key_pair, true, debug)
+        config_helper(config, user_id_name, company_id_name, nil, auth_app_id, auth_app_key_pair, true, debug)
         set_user_id(auth_app_id .. "-" .. auth_app_key_pair, debug)
+        set_company_id(auth_app_id .. "-" .. auth_app_key_pair, debug)
     elseif nonEmpty(auth_api_key) then 
         ngx.ctx.moesif_session_token = auth_api_key
-        config_helper(config, user_id_name, auth_api_key, nil, nil, false, debug)
+        config_helper(config, user_id_name, company_id_name, auth_api_key, nil, nil, false, debug)
         set_user_id(auth_api_key, debug)
+        set_company_id(auth_api_key, debug)
     else
         if debug then
-            ngx.log(ngx.DEBUG, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided.")
+            ngx.log(ngx.ERR, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided.")
         end
     end
 else

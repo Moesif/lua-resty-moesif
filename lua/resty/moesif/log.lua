@@ -47,7 +47,7 @@ function get_config(premature, config, application_id, debug)
     end
   else
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] Successfully send request to fetch the application configuration " , ok)
+      ngx.log(ngx.ERR, "[moesif] Successfully send request to fetch the application configuration " , ok)
     end
   end
 
@@ -62,7 +62,7 @@ function get_config(premature, config, application_id, debug)
     return
    else
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] success keep-alive", ok)
+      ngx.log(ngx.ERR, "[moesif] success keep-alive", ok)
     end
   end
 
@@ -94,13 +94,13 @@ end
 -- Generates http payload
 local function generate_post_payload(parsed_url, message, application_id, debug)
   if debug then
-    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Message - " , dump(message))
-    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Message - " , type(message))
+    ngx.log(ngx.ERR, "[moesif] Generate Post Payload Message - " , dump(message))
+    ngx.log(ngx.ERR, "[moesif] Generate Post Payload Message - " , type(message))
   end
   local body = cjson.encode(message)
   if debug then
-    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Body - " , dump(body))
-    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Body - " , type(body))
+    ngx.log(ngx.ERR, "[moesif] Generate Post Payload Body - " , dump(body))
+    ngx.log(ngx.ERR, "[moesif] Generate Post Payload Body - " , type(body))
   end
   local ok, compressed_body = pcall(compress["CompressDeflate"], compress, body)
   if not ok then
@@ -109,14 +109,14 @@ local function generate_post_payload(parsed_url, message, application_id, debug)
     end
   else
     if debug then
-      ngx.log(ngx.DEBUG, " [moesif]  ", "successfully compressed body")
+      ngx.log(ngx.ERR, " [moesif]  ", "successfully compressed body")
     end
     body = compressed_body
   end
 
   local payload = string_format(
     "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-    "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.11", "deflate", #body, body)
+    "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.13", "deflate", #body, body)
   return payload
 end
 
@@ -130,7 +130,7 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
     end
   else
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] Events sent successfully " , ok)
+      ngx.log(ngx.ERR, "[moesif] Events sent successfully " , ok)
     end
   end
 
@@ -138,8 +138,8 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
   local send_event_response = helpers.read_socket_data(sock)
 
   if debug then
-    ngx.log(ngx.DEBUG, "[moesif] Send Event Response - " , dump(send_event_response))
-    ngx.log(ngx.DEBUG, "[moesif] Send Event Response - " , type(send_event_response))
+    ngx.log(ngx.ERR, "[moesif] Send Event Response - " , dump(send_event_response))
+    ngx.log(ngx.ERR, "[moesif] Send Event Response - " , type(send_event_response))
   end
 
   -- Check if the application configuration is updated
@@ -153,7 +153,7 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
       end
     else
       if debug then
-        ngx.log(ngx.DEBUG, "[moesif] successfully fetched the application configuration" , ok)
+        ngx.log(ngx.ERR, "[moesif] successfully fetched the application configuration" , ok)
       end
     end
   end
@@ -208,7 +208,7 @@ local function send_events_batch(premature, config, debug)
 
   if not has_events then
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] No events to read from the queue")
+      ngx.log(ngx.ERR, "[moesif] No events to read from the queue")
     end
   end
 end
@@ -234,13 +234,13 @@ local function log(premature, config, message, hash_key, debug)
 
   if sampling_rate >= random_percentage then
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] Event added to the queue")
+      ngx.log(ngx.ERR, "[moesif] Event added to the queue")
     end
     message["weight"] = (sampling_rate == 0 and 1 or math.floor(100 / sampling_rate))
     table.insert(queue_hashes[hash_key], message)
   else
     if debug then
-      ngx.log(ngx.DEBUG, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
+      ngx.log(ngx.ERR, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
     end
   end
 end
@@ -272,7 +272,7 @@ function _M.execute(config, message, debug)
         end
       else
         if debug then
-          ngx.log(ngx.DEBUG, "[moesif] successfully fetched the application configuration" , ok)
+          ngx.log(ngx.ERR, "[moesif] successfully fetched the application configuration" , ok)
         end
       end
     end
