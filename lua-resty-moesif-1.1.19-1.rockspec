@@ -1,7 +1,7 @@
 package = "lua-resty-moesif"  -- TODO: rename, must match the info in the filename of this rockspec!
                                   -- as a convention; stick to the prefix: `kong-plugin-`
-version = "1.1.18-1"               -- TODO: renumber, must match the info in the filename of this rockspec!
--- The version '1.1.18' is the source code version, the trailing '1' is the version of this rockspec.
+version = "1.1.19-1"               -- TODO: renumber, must match the info in the filename of this rockspec!
+-- The version '1.1.19' is the source code version, the trailing '1' is the version of this rockspec.
 -- whenever the source version changes, the rockspec should be reset to 1. The rockspec version is only
 -- updated (incremented) when this file changes, but the source remains the same.
 
@@ -12,7 +12,7 @@ local pluginName = package:match("^lua%-resty%-(.+)$")  -- "moesif"
 supported_platforms = {"linux", "macosx"}
 source = {
   url = "git://github.com/Moesif/lua-resty-moesif",
-  tag = "1.1.18"
+  tag = "1.1.19"
 }
 
 description = {
@@ -26,7 +26,6 @@ dependencies = {
   "luasocket >= 3.0rc1",
   "lua-cjson >= 2.1.0.6",
   "luaxml >= 101012",
-  "lua-resty-lrucache >= 0.09",
 }
 
 build = {
@@ -43,7 +42,6 @@ build = {
     ["lua.resty.moesif.zzlib"] = "lua/resty/moesif/zzlib.lua",
     ["lua.resty.moesif.base64"] = "lua/resty/moesif/base64.lua",
     ["lua.resty.moesif.read_req_body"] = "lua/resty/moesif/read_req_body.lua",
-    ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua",
-    ["lua.resty.moesif.moesif_global"] = "lua/resty/moesif/moesif_global.lua"
+    ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua"
   }
 }

@@ -80,6 +80,8 @@ Below is a sample configuration for 3scale:
 
 ```nginx
 lua_shared_dict moesif_conf 2m;
+lua_shared_dict user_id_cache 2m;
+lua_shared_dict company_id_cache 2m;
 
 init_by_lua_block {
    local config = ngx.shared.moesif_conf;
@@ -99,6 +101,9 @@ server {
   # Set automatically from 3scale management API
   set $user_id nil;
   set $company_id nil;
+  # Request/Response body variable that Moesif will use downstream
+  set $req_body nil;
+  set $resp_body nil;
 
   access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
   body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
@@ -177,11 +182,7 @@ or in a `body_filter_by_lua_block`.
 
 ```nginx
 header_filter_by_lua_block  { 
-
-  # Read user id from request query param
   ngx.var.user_id     = ngx.req.arg_user_id
-
-  # Read version from request header
   ngx.var.api_version = ngx.req.get_headers()["X-API-Version"]
 }
 

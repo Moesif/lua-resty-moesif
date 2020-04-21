@@ -132,7 +132,6 @@ end
 
 -- Prepare message
 function _M.prepare_message(config)
-  local moesif_ctx = ngx.ctx.moesif or {}
   local session_token_entity
   local request_body_entity
   local response_body_entity
@@ -173,29 +172,29 @@ function _M.prepare_message(config)
     api_version = ngx.var.api_version
   end
 
-  if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
+  if ngx.var.req_body == nil or config:get("disable_capture_request_body") then
     request_body_entity = nil
   else
     local request_body_masks = mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
-    if request_headers["content-type"] ~= nil and string.find(request_headers["content-type"], "json") and is_valid_json(moesif_ctx.req_body) then 
-      request_body_entity, req_body_transfer_encoding = process_data(moesif_ctx.req_body, request_body_masks)
-    elseif request_headers["content-encoding"] ~= nil and type(moesif_ctx.req_body) == "string" and string.find(request_headers["content-encoding"], "gzip") then
-      request_body_entity, req_body_transfer_encoding = decompress_body(moesif_ctx.req_body, request_body_masks)
+    if request_headers["content-type"] ~= nil and string.find(request_headers["content-type"], "json") and is_valid_json(ngx.var.req_body) then 
+      request_body_entity, req_body_transfer_encoding = process_data(ngx.var.req_body, request_body_masks)
+    elseif request_headers["content-encoding"] ~= nil and type(ngx.var.req_body) == "string" and string.find(request_headers["content-encoding"], "gzip") then
+      request_body_entity, req_body_transfer_encoding = decompress_body(ngx.var.req_body, request_body_masks)
     else
-      request_body_entity, req_body_transfer_encoding = base64_encode_body(moesif_ctx.req_body)
+      request_body_entity, req_body_transfer_encoding = base64_encode_body(ngx.var.req_body)
     end
   end
 
-  if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") then
+  if ngx.var.resp_body == nil or config:get("disable_capture_response_body") then
     response_body_entity = nil
   else
     local response_body_masks = mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
-    if response_headers["content-type"] ~= nil and is_valid_json(moesif_ctx.res_body) then 
-      response_body_entity, rsp_body_transfer_encoding = process_data(moesif_ctx.res_body, response_body_masks)
-    elseif response_headers["content-encoding"] ~= nil and type(moesif_ctx.res_body) == "string" and string.find(response_headers["content-encoding"], "gzip") then
-      response_body_entity, rsp_body_transfer_encoding = decompress_body(moesif_ctx.res_body, response_body_masks)
+    if response_headers["content-type"] ~= nil and is_valid_json(ngx.var.resp_body) then 
+      response_body_entity, rsp_body_transfer_encoding = process_data(ngx.var.resp_body, response_body_masks)
+    elseif response_headers["content-encoding"] ~= nil and type(ngx.var.resp_body) == "string" and string.find(response_headers["content-encoding"], "gzip") then
+      response_body_entity, rsp_body_transfer_encoding = decompress_body(ngx.var.resp_body, response_body_masks)
     else
-      response_body_entity, rsp_body_transfer_encoding = base64_encode_body(moesif_ctx.res_body)
+      response_body_entity, rsp_body_transfer_encoding = base64_encode_body(ngx.var.resp_body)
     end
   end
 
