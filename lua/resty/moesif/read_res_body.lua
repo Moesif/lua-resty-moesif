@@ -4,7 +4,7 @@ local _M = {}
     local chunk = ngx.arg[1]
     ngx.ctx.buffered = (ngx.ctx.buffered or "") .. chunk
     if ngx.arg[2] then
-        ngx.var.resp_body = ngx.ctx.buffered
+        ngx.var.moesif_res_body = ngx.ctx.buffered
     end
  end
 
