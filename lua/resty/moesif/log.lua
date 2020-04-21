@@ -181,7 +181,7 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
 end
 
 -- Send Events Batch
-local function send_events_batch(premature, config, debug)
+local function send_events_batch(premature, config, queue_hashes, debug)
 
   if premature then
     return
@@ -272,13 +272,13 @@ local function log(premature, config, message, hash_key, debug)
 end
 
 -- Schedule Events batch job
-function scheduleJob(premature, config, debug)
+function scheduleJob(premature, config, queue_hashes, debug)
   if not premature then
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
     end
-    send_events_batch(false, config, debug)
-    local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, debug)
+    send_events_batch(false, config, queue_hashes, debug)
+    local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, debug)
     if not ok then
         ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
         return
@@ -362,7 +362,7 @@ function _M.execute(config, message, debug)
       ngx.log(ngx.ERR, "[moesif] Batch Job is not scheduled, scheduling the job  - ")
     end
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, debug)
     if not scheduleJobOk then
       ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
