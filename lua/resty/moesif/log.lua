@@ -13,6 +13,19 @@ local connect = require "connection"
 local sample_rate = 100
 local _M = {}
 
+function dump(o)
+  if type(o) == 'table' then
+     local s = '{ '
+     for k,v in pairs(o) do
+        if type(k) ~= 'number' then k = '"'..k..'"' end
+        s = s .. '['..k..'] = ' .. dump(v) .. ','
+     end
+     return s .. '} '
+  else
+     return tostring(o)
+  end
+end
+
 -- Get App Config function
 function get_config(premature, config, application_id, debug)
   if premature then
@@ -80,7 +93,15 @@ end
 
 -- Generates http payload
 local function generate_post_payload(parsed_url, message, application_id, debug)
+  if debug then
+    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Message - " , dump(message))
+    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Message - " , type(message))
+  end
   local body = cjson.encode(message)
+  if debug then
+    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Body - " , dump(body))
+    ngx.log(ngx.DEBUG, "[moesif] Generate Post Payload Body - " , type(body))
+  end
   local ok, compressed_body = pcall(compress["CompressDeflate"], compress, body)
   if not ok then
     if debug then
@@ -95,7 +116,7 @@ local function generate_post_payload(parsed_url, message, application_id, debug)
 
   local payload = string_format(
     "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-    "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."0.1.0", "deflate", #body, body)
+    "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.11", "deflate", #body, body)
   return payload
 end
 
@@ -115,6 +136,11 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
 
   -- Read the response
   local send_event_response = helpers.read_socket_data(sock)
+
+  if debug then
+    ngx.log(ngx.DEBUG, "[moesif] Send Event Response - " , dump(send_event_response))
+    ngx.log(ngx.DEBUG, "[moesif] Send Event Response - " , type(send_event_response))
+  end
 
   -- Check if the application configuration is updated
   local response_etag = string.match(send_event_response, "ETag%s*:%s*(.-)\n")
