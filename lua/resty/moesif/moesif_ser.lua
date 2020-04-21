@@ -12,6 +12,19 @@ local zzlib = require "zzlib"
 local base64 = require "base64"
 local _M = {}
 
+function dump(o)
+  if type(o) == 'table' then
+     local s = '{ '
+     for k,v in pairs(o) do
+        if type(k) ~= 'number' then k = '"'..k..'"' end
+        s = s .. '['..k..'] = ' .. dump(v) .. ','
+     end
+     return s .. '} '
+  else
+     return tostring(o)
+  end
+end
+
 -- Split the string
 local function split(str, character)
   local result = {}
