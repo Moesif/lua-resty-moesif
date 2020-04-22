@@ -42,16 +42,16 @@ server {
   listen 80;
   resolver 8.8.8.8;
 
-  -- Customer identity variables that Moesif will read downstream
+  # Customer identity variables that Moesif will read downstream
   set $moesif_user_id nil;
   set $moesif_company_id nil;
 
-  -- Request/Response body variable that Moesif will use downstream
+  # Request/Response body variable that Moesif will use downstream
   set $moesif_req_body nil;
-  set $moesif_resp_body nil;
+  set $moesif_res_body nil;
 
-  -- Optionally, identify the user and the company (account)
-  -- from a request or response header, query param, NGINX var, etc
+  # Optionally, identify the user and the company (account)
+  # from a request or response header, query param, NGINX var, etc
   header_filter_by_lua_block  { 
     ngx.var.moesif_user_id = ngx.req.get_headers()["X-User-Id"]
     ngx.var.moesif_company_id = ngx.req.get_headers()["X-Company-Id"]
@@ -61,7 +61,7 @@ server {
   body_filter_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/read_res_body.lua;
   log_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/send_event.lua;
 
-  -- Sample Hello World API
+  # Sample Hello World API
   location /api {
      add_header Content-Type "application/json";
      return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
@@ -101,20 +101,20 @@ server {
   listen 80;
   resolver 8.8.8.8;
 
-  -- Customer identity variables that Moesif will read downstream
-  -- Set automatically from 3scale management API
+  # Customer identity variables that Moesif will read downstream
+  # Set automatically from 3scale management API
   set $moesif_user_id nil;
   set $moesif_company_id nil;
 
-  -- Request/Response body variable that Moesif will use downstream
+  # Request/Response body variable that Moesif will use downstream
   set $moesif_req_body nil;
-  set $moesif_resp_body nil;
+  set $moesif_res_body nil;
 
   access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
   body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
   log_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/send_event_3Scale.lua;
 
-  -- Sample Hello World API
+  # Sample Hello World API
   location /api {
       add_header Content-Type "application/json";
       return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
@@ -187,15 +187,15 @@ or in a `body_filter_by_lua_block`.
 
 ```nginx
 header_filter_by_lua_block  { 
-  -- Read user id from request query param
+  # Read user id from request query param
   ngx.var.moesif_user_id     = ngx.req.arg_user_id
   
-  -- Read version from request header
+  # Read version from request header
   ngx.var.moesif_api_version = ngx.req.get_headers()["X-API-Version"]
 }
 
 body_filter_by_lua_block  { 
-  -- Read company id from response header
+  # Read company id from response header
   ngx.var.moesif_company_id  = ngx.resp.get_headers()["X-Company-Id"]
 }
 ```
