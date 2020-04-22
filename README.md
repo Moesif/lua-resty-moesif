@@ -46,6 +46,10 @@ server {
   set $moesif_user_id nil;
   set $moesif_company_id nil;
 
+  -- Request/Response body variable that Moesif will use downstream
+  set $moesif_req_body nil;
+  set $moesif_resp_body nil;
+
   -- Optionally, identify the user and the company (account)
   -- from a request or response header, query param, NGINX var, etc
   header_filter_by_lua_block  { 
