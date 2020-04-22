@@ -28,7 +28,7 @@ Replace `/usr/local/openresty/luajit/share/lua/5.1/resty` with the correct lua p
 _If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`. Sometimes luarocks installs packages in multiple locations, just choose one._
 
 ```nginx
-lua_shared_dict moesif_conf 2m;
+lua_shared_dict moesif_conf 5m;
 
 init_by_lua_block {
    local config = ngx.shared.moesif_conf;
@@ -59,10 +59,6 @@ server {
 
   -- Sample Hello World API
   location /api {
-    proxy_pass http://127.0.0.1:80/hello;
-  }
-
-  location /hello {
      add_header Content-Type "application/json";
      return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
   }
@@ -83,9 +79,9 @@ _If you're unsure of the installation path, you can find it via: `find / -name "
 Below is a sample configuration for 3scale:
 
 ```nginx
-lua_shared_dict moesif_conf 2m;
-lua_shared_dict user_id_cache 2m;
-lua_shared_dict company_id_cache 2m;
+lua_shared_dict moesif_conf 5m;
+lua_shared_dict user_id_cache 5m;
+lua_shared_dict company_id_cache 5m;
 
 init_by_lua_block {
    local config = ngx.shared.moesif_conf;
@@ -116,10 +112,6 @@ server {
 
   -- Sample Hello World API
   location /api {
-    proxy_pass http://127.0.0.1:80/hello;
-  }
-
-  location /hello {
       add_header Content-Type "application/json";
       return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
     }
@@ -205,11 +197,11 @@ body_filter_by_lua_block  {
 ```
 
 #### __`moesif_user_id`__
-(optional) _string_, Attribute API requests to individual users so you can track who calling your API. This can also be used with `company_id` to track account level usage.
+(optional) _string_, Attribute API requests to individual users so you can track who calling your API. This can also be used with `ngx.var.moesif_company_id` to track account level usage.
 _If you installed for 3scale, you do not need to set this field as this is handled automatically_
 
 #### __`moesif_company_id`__
-(optional) _string_, Attribute API requests to companies or accounts so you can track who calling your API. This can be used with `user_id`. 
+(optional) _string_, Attribute API requests to companies or accounts so you can track who calling your API. This can be used with `ngx.var.moesif_company_id`. 
 _If you installed for 3scale, you do not need to set this field as this is handled automatically_
 
 #### __`moesif_api_version`__
