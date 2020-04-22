@@ -43,8 +43,8 @@ server {
   resolver 8.8.8.8;
 
   -- Customer identity variables that Moesif will read downstream
-  set $user_id nil;
-  set $company_id nil;
+  set $moesif_user_id nil;
+  set $moesif_company_id nil;
 
   -- Optionally, identify the user and the company (account)
   -- from a request or response header, query param, NGINX var, etc
