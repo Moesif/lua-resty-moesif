@@ -342,8 +342,6 @@ function _M.execute(config, message, debug)
     ngx.log(ngx.ERR, "[moesif] Calling the log function with message - ", dump(message))
   end
 
-  local ok, err = ngx.timer.at(0, log, config, message, hash_key, debug)
-  if not ok then
   log(config, message, hash_key, debug)
 
   if debug then
