@@ -187,15 +187,15 @@ or in a `body_filter_by_lua_block`.
 
 ```nginx
 header_filter_by_lua_block  { 
-  # Read user id from request query param
+  -- Read user id from request query param
   ngx.var.moesif_user_id     = ngx.req.arg_user_id
   
-  # Read version from request header
+  -- Read version from request header
   ngx.var.moesif_api_version = ngx.req.get_headers()["X-API-Version"]
 }
 
 body_filter_by_lua_block  { 
-  # Read company id from response header
+  -- Read company id from response header
   ngx.var.moesif_company_id  = ngx.resp.get_headers()["X-Company-Id"]
 }
 ```
