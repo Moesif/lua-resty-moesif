@@ -235,10 +235,7 @@ local function send_events_batch(premature, config, queue_hashes, debug)
 end
 
 -- Log to a Http end point.
-local function log(premature, config, message, hash_key, debug)
-  if premature then
-    return
-  end
+local function log(config, message, hash_key, debug)
 
   -- Sampling Events
   local random_percentage = math.random() * 100
@@ -347,10 +344,7 @@ function _M.execute(config, message, debug)
 
   local ok, err = ngx.timer.at(0, log, config, message, hash_key, debug)
   if not ok then
-    if debug then
-      ngx.log(ngx.ERR, "[moesif] failed to create timer: ", err)
-    end
-  end
+  log(config, message, hash_key, debug)
 
   if debug then
     ngx.log(ngx.ERR, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(queue_scheduled_time))
