@@ -118,7 +118,7 @@ server {
   location /api {
       add_header Content-Type "application/json";
       return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
-    }
+  }
 }
 ```
 
@@ -211,10 +211,51 @@ _If you installed for 3scale, you do not need to set this field as this is handl
 #### __`moesif_api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with.
 
+## Troubleshooting
+
+### Response body not being logged
+If you find response body is not being logged in Moesif, your setup may require
+an internal `proxy_pass` which can be added with a few lines of code to your `nginx.conf`.
+
+For the following sample server:
+```nginx
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  # Sample Hello World API
+  location /api {
+     add_header Content-Type "application/json";
+     return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
+```
+
+ One with `proxy_pass` would look like so:
+
+```nginx
+server {
+  listen 80;
+  resolver 8.8.8.8;
+
+  # Sample Hello World API
+  location /api {
+    proxy_pass http://127.0.0.1:80/internal;
+  }
+
+  location /internal {
+      add_header Content-Type "application/json";
+      return 200 '{\r\n  \"message\": \"Hello World\",\r\n  \"completed\": true\r\n}';
+  }
+}
+```
+
 ## Example
 An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
 
 Congratulations! If everything was done correctly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
+
+
 
 ## Other integrations
 
