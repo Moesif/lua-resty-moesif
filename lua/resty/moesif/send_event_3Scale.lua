@@ -123,6 +123,9 @@ if isempty(config:get("enable_compression")) then
     config:set("enable_compression", true)
 end
 
+-- User Agent String
+local user_agent_string = "lua-resty-moesif-3scale/1.2.3"
+
 function dump(o)
     if type(o) == 'table' then
        local s = '{ '
@@ -332,7 +335,7 @@ local message = moesif_ser.prepare_message(config)
 
  -- Execute/Log message
 function logEvent(config, message)
-    log.execute(config, message, config:get("debug"))
+    log.execute(config, message, user_agent_string, config:get("debug"))
 end
 
 -- Log Event

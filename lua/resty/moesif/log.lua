@@ -101,7 +101,7 @@ function get_config(premature, config, application_id, debug)
 end
 
 -- Generates http payload
-local function generate_post_payload(config, parsed_url, message, application_id, debug)
+local function generate_post_payload(config, parsed_url, message, application_id, user_agent_string, debug)
   
   local payload = nil
   if debug then
@@ -129,12 +129,12 @@ local function generate_post_payload(config, parsed_url, message, application_id
 
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.14", "deflate", #body, body)
+      "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, "deflate", #body, body)
     ngx.log(ngx.ERR, "[moesif] Sending the payload with compression  - " , type(payload))
   else 
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, "lua-resty-moesif/".."1.1.14", #body, body)
+      "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, #body, body)
     ngx.log(ngx.ERR, "[moesif] Sending the payload without compression - " , type(payload))
   end
 
@@ -142,9 +142,9 @@ local function generate_post_payload(config, parsed_url, message, application_id
 end
 
 -- Send Payload
-local function send_payload(sock, parsed_url, batch_events, config, debug)
+local function send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
   local application_id = config:get("application_id")
-  local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, debug) .. "\r\n")
+  local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug) .. "\r\n")
   if not ok then
     if debug then
       ngx.log(ngx.ERR, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
@@ -181,7 +181,7 @@ local function send_payload(sock, parsed_url, batch_events, config, debug)
 end
 
 -- Send Events Batch
-local function send_events_batch(premature, config, queue_hashes, debug)
+local function send_events_batch(premature, config, queue_hashes, user_agent_string, debug)
 
   if premature then
     return
@@ -197,9 +197,9 @@ local function send_events_batch(premature, config, queue_hashes, debug)
           local event = table.remove(queue)
           table.insert(batch_events, event)
           if (#batch_events == configuration:get("batch_size")) then
-            send_payload(sock, parsed_url, batch_events, config, debug)
+            send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
           else if(#queue ==0 and #batch_events > 0) then
-              send_payload(sock, parsed_url, batch_events, config, debug)
+              send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
             end
           end
         until #batch_events == configuration:get("batch_size") or next(queue) == nil
@@ -269,13 +269,13 @@ local function log(config, message, hash_key, debug)
 end
 
 -- Schedule Events batch job
-function scheduleJob(premature, config, queue_hashes, debug)
+function scheduleJob(premature, config, queue_hashes, user_agent_string, debug)
   if not premature then
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
     end
-    send_events_batch(false, config, queue_hashes, debug)
-    local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, debug)
+    send_events_batch(false, config, queue_hashes, user_agent_string, debug)
+    local ok, err = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, user_agent_string, debug)
     if not ok then
         ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", err)
         return
@@ -283,7 +283,7 @@ function scheduleJob(premature, config, queue_hashes, debug)
   end
 end
 
-function _M.execute(config, message, debug)
+function _M.execute(config, message, user_agent_string, debug)
   -- Get Application Id
   local application_id = config:get("application_id")
 
@@ -354,7 +354,7 @@ function _M.execute(config, message, debug)
       ngx.log(ngx.ERR, "[moesif] Batch Job is not scheduled, scheduling the job  - ")
     end
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), scheduleJob, config, queue_hashes, user_agent_string, debug)
     if not scheduleJobOk then
       ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else

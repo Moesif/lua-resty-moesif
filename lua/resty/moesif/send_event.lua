@@ -60,7 +60,6 @@ if isempty(config:get("response_header_masks")) then
   config:set("response_header_masks", "")
 end
 
-
 if isempty(config:get("batch_size")) then
   config:set("batch_size", 25)
 end
@@ -81,6 +80,9 @@ if isempty(config:get("enable_compression")) then
   config:set("enable_compression", false)
 end
 
+-- User Agent String
+local user_agent_string = "lua-resty-moesif/1.2.3"
+
 -- Log Event
 if isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");
@@ -88,5 +90,5 @@ else
   local message = moesif_ser.prepare_message(config)
 
   -- Execute/Log message
-  log.execute(config, message, config:get("debug"))
+  log.execute(config, message, user_agent_string, config:get("debug"))
 end
