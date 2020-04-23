@@ -81,7 +81,7 @@ if isempty(config:get("enable_compression")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.3"
+local user_agent_string = "lua-resty-moesif/1.2.4"
 
 -- Log Event
 if isempty(config:get("application_id")) then

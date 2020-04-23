@@ -122,7 +122,7 @@ if isempty(config:get("enable_compression")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.2.3"
+local user_agent_string = "lua-resty-moesif-3scale/1.2.4"
 
 function dump(o)
     if type(o) == 'table' then
