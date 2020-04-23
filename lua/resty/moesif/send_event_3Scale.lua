@@ -121,6 +121,10 @@ if isempty(config:get("enable_compression")) then
     config:set("enable_compression", true)
 end
 
+if isempty(config:get("queue_scheduled_time")) then
+    config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
+end
+
 -- User Agent String
 local user_agent_string = "lua-resty-moesif-3scale/1.2.4"
 

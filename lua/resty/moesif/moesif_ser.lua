@@ -6,7 +6,6 @@ local res_get_headers = ngx.resp.get_headers
 local cjson = require "cjson"
 local cjson_safe = require "cjson.safe"
 local random = math.random
-local transaction_id = nil
 local client_ip = require "client_ip"
 local zzlib = require "zzlib"
 local base64 = require "base64"
@@ -138,6 +137,7 @@ function _M.prepare_message(config)
   local user_id_entity
   local company_id_entity
   local api_version
+  local transaction_id = nil
   local req_body_transfer_encoding = nil
   local rsp_body_transfer_encoding = nil
   local request_headers = ngx.req.get_headers()
