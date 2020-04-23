@@ -154,7 +154,7 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.user_key
   elseif ngx.var.userid ~= nil then
     user_id_entity = ngx.var.userid
-  elseif ngx.var.moesif_user_id ~= nil then
+  elseif ngx.var.moesif_user_id ~= nil and ngx.var.moesif_user_id ~= "nil" and ngx.var.moesif_user_id ~= "null" and ngx.var.moesif_user_id ~= '' then
     user_id_entity = ngx.var.moesif_user_id
   elseif ngx.var.remote_user ~= nil then
     user_id_entity = ngx.var.remote_user
@@ -162,7 +162,7 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.application_id
   end
 
-  if ngx.var.moesif_company_id ~= nil then
+  if ngx.var.moesif_company_id ~= nil and ngx.var.moesif_company_id ~= "nil" and ngx.var.moesif_company_id ~= "null" and ngx.var.moesif_company_id ~= '' then
     company_id_entity = ngx.var.moesif_company_id
   elseif ngx.var.account_id ~= nil then
     company_id_entity = ngx.var.account_id
