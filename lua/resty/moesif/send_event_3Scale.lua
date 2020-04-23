@@ -110,7 +110,7 @@ if isempty(config:get("3Scale_cache_ttl")) then
 end
 
 if isempty(config:get("batch_max_time")) then
-    config:set("batch_max_time", 20)
+    config:set("batch_max_time", 5)
 end
 
 if isempty(config:get("is_batch_job_scheduled")) then
