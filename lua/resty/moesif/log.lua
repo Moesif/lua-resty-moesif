@@ -4,9 +4,9 @@ local string_format = string.format
 local configuration = nil
 local config_hashes = {}
 local queue_hashes = {}
+local queue_scheduled_time
 local moesif_events = "moesif_events_"
 local has_events = false
-local ngx_md5 = ngx.md5
 local compress = require "lib_deflate"
 local helpers = require "helpers"
 local connect = require "connection"
@@ -180,30 +180,31 @@ local function send_payload(sock, parsed_url, batch_events, config, user_agent_s
 end
 
 -- Send Events Batch
-local function send_events_batch(premature, config, queue_hashes, user_agent_string, debug)
+local function send_events_batch(premature, config,  user_agent_string, debug)
 
   if premature then
     return
   end
+  local local_queue = queue_hashes
+  queue_hashes = {}
   repeat
-    for key, queue in pairs(queue_hashes) do
-      if #queue > 0 then
-        -- Getting the configuration for this particular key
-        configuration = config_hashes[key]
+      if #local_queue > 0 then
+        -- Getting the configuration
+        configuration = config_hashes
         local sock, parsed_url = connect.get_connection(config, config:get("api_endpoint"), "/v1/events/batch")
         local batch_events = {}
         repeat
-          local event = table.remove(queue)
+          local event = table.remove(local_queue)
           table.insert(batch_events, event)
-          if (#batch_events == configuration:get("batch_size")) then
+          if (#batch_events == config:get("batch_size")) then
             send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
-          else if(#queue ==0 and #batch_events > 0) then
+          else if(#local_queue ==0 and #batch_events > 0) then
               send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
             end
           end
-        until #batch_events == configuration:get("batch_size") or next(queue) == nil
+        until #batch_events == config:get("batch_size") or next(local_queue) == nil
 
-        if #queue > 0 then
+        if #local_queue > 0 then
           has_events = true
         else
           has_events = false
@@ -223,7 +224,6 @@ local function send_events_batch(premature, config, queue_hashes, user_agent_str
       else
         has_events = false
       end
-    end
   until has_events == false
 
   if not has_events then
@@ -234,7 +234,7 @@ local function send_events_batch(premature, config, queue_hashes, user_agent_str
 end
 
 -- Log to a Http end point.
-local function log(config, message, hash_key, debug)
+local function log(config, message, debug)
 
   -- Sampling Events
   local random_percentage = math.random() * 100
@@ -259,7 +259,7 @@ local function log(config, message, hash_key, debug)
       ngx.log(ngx.ERR, "[moesif] Event which was added to the queue is - ", dump(message))
     end
 
-    table.insert(queue_hashes[hash_key], message)
+    table.insert(queue_hashes, message)
   else
     if debug then
       ngx.log(ngx.ERR, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
@@ -268,32 +268,35 @@ local function log(config, message, hash_key, debug)
 end
 
 -- Run the job
-function runJob(premature, config, queue_hashes, user_agent_string, scheduleJobIfNeeded, debug)
+function runJob(premature, config,  user_agent_string, debug)
   if not premature then
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
     end
-    send_events_batch(false, config, queue_hashes, user_agent_string, debug)
+    send_events_batch(false, config,  user_agent_string, debug)
     
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the scheduleJobIfNeeded function to check if needed to schedule the job - ")
     end
-    scheduleJobIfNeeded(config, config:get("batch_max_time"), queue_hashes, user_agent_string, debug)
+    scheduleJobIfNeeded(config, config:get("batch_max_time"), user_agent_string, debug)
   end
 end
 
 -- Schedule Events batch job
-function scheduleJobIfNeeded(config, batch_max_time, queue_hashes, user_agent_string, debug)
-  if (os.time() > (config:get("queue_scheduled_time") + batch_max_time)) then
+function scheduleJobIfNeeded(config, batch_max_time,  user_agent_string, debug)
+  if queue_scheduled_time == nil then 
+    queue_scheduled_time = os.time{year=1970, month=1, day=1, hour=0}
+  end
+  if (os.time() >= (queue_scheduled_time + batch_max_time)) then
     
     if debug then
       ngx.log(ngx.ERR, "[moesif] Batch Job is not scheduled, scheduling the job  - ")
     end
 
     -- Updating the queue scheduled time
-    config:set("queue_scheduled_time", os.time())
+    queue_scheduled_time = os.time()
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config, queue_hashes, user_agent_string, scheduleJobIfNeeded, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config,  user_agent_string, debug)
     if not scheduleJobOk then
       ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
@@ -317,9 +320,6 @@ function _M.execute(config, message, user_agent_string, debug)
     ngx.log(ngx.ERR, "[moesif] Inside Execute, application_id from config -   ", application_id)
   end
 
-  -- Hash key of the config application Id
-  local hash_key = ngx_md5(application_id)
-
   if message["user_id"] ~= nil then 
     config:set("user_id", message["user_id"])
   else 
@@ -327,7 +327,7 @@ function _M.execute(config, message, user_agent_string, debug)
   end
 
   -- Execute
-  if config_hashes[hash_key] == nil then
+  if config_hashes == nil then
     if config:get("user_sample_rate") == nil then
       config:set("user_sample_rate", nil)
     end
@@ -357,23 +357,20 @@ function _M.execute(config, message, user_agent_string, debug)
     if config:get("ETag") == nil then
       config:set("ETag", nil)
     end
-    config_hashes[hash_key] = config
-    local create_new_table = moesif_events..hash_key
-    create_new_table = {}
-    queue_hashes[hash_key] = create_new_table
+    config_hashes = config
   end
 
   if debug then
     ngx.log(ngx.ERR, "[moesif] Calling the log function with message - ", dump(message))
   end
 
-  log(config, message, hash_key, debug)
+  log(config, message, debug)
 
   if debug then
     ngx.log(ngx.ERR, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(config:get("queue_scheduled_time")))
   end
 
-  scheduleJobIfNeeded(config, 5 * config:get("batch_max_time"), queue_hashes, user_agent_string, debug)
+  scheduleJobIfNeeded(config, 5 * config:get("batch_max_time"), user_agent_string, debug)
 
 end
 

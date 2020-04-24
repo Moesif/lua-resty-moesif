@@ -85,7 +85,7 @@ if isempty(config:get("queue_scheduled_time")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.4"
+local user_agent_string = "lua-resty-moesif/1.2.5"
 
 -- Log Event
 if isempty(config:get("application_id")) then
