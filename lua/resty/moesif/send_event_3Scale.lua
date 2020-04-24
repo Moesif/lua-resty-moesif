@@ -118,7 +118,7 @@ if isempty(config:get("is_batch_job_scheduled")) then
 end
 
 if isempty(config:get("enable_compression")) then
-    config:set("enable_compression", false)
+    config:set("enable_compression", true)
 end
 
 if isempty(config:get("queue_scheduled_time")) then
