@@ -69,7 +69,7 @@ if isempty(config:get("debug")) then
 end
 
 if isempty(config:get("batch_max_time")) then
-  config:set("batch_max_time", 5)
+  config:set("batch_max_time", 2)
 end
 
 if isempty(config:get("is_batch_job_scheduled")) then

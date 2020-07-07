@@ -238,7 +238,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
 end
 
 -- Log to a Http end point.
-local function log(config, message, user_agent_string, debug)
+local function log(config, message, debug)
 
   -- Sampling Events
   local random_percentage = math.random() * 100
@@ -265,14 +265,6 @@ local function log(config, message, user_agent_string, debug)
 
     table.insert(queue_hashes, message)
 
-    if #queue_hashes >= config:get("batch_size") then 
-      local ok, err = ngx.timer.at(0, send_events_batch, config, user_agent_string, debug)
-      if not ok then
-        if debug then 
-          ngx.log(ngx.ERR, "[moesif] Error while sending events when queue size matches batch size ", err)
-        end
-      end
-    end
   else
     if debug then
       ngx.log(ngx.ERR, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
@@ -377,7 +369,7 @@ function _M.execute(config, message, user_agent_string, debug)
     ngx.log(ngx.ERR, "[moesif] Calling the log function with message - ", dump(message))
   end
 
-  log(config, message, user_agent_string, debug)
+  log(config, message, debug)
 
   if debug then
     ngx.log(ngx.ERR, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(config:get("queue_scheduled_time")))
