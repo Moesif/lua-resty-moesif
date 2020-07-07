@@ -129,12 +129,16 @@ local function generate_post_payload(config, parsed_url, message, application_id
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, "deflate", #body, body)
-    ngx.log(ngx.ERR, "[moesif] Sending the payload with compression  - " , type(payload))
+    if debug then
+      ngx.log(ngx.ERR, "[moesif] Sending the payload with compression  - " , type(payload))
+    end
   else 
     payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, #body, body)
-    ngx.log(ngx.ERR, "[moesif] Sending the payload without compression - " , type(payload))
+    if debug then
+      ngx.log(ngx.ERR, "[moesif] Sending the payload without compression - " , type(payload))
+    end
   end
 
   return payload
@@ -180,7 +184,7 @@ local function send_payload(sock, parsed_url, batch_events, config, user_agent_s
 end
 
 -- Send Events Batch
-local function send_events_batch(premature, config,  user_agent_string, debug)
+local function send_events_batch(premature, config, user_agent_string, debug)
 
   if premature then
     return
@@ -234,7 +238,7 @@ local function send_events_batch(premature, config,  user_agent_string, debug)
 end
 
 -- Log to a Http end point.
-local function log(config, message, debug)
+local function log(config, message, user_agent_string, debug)
 
   -- Sampling Events
   local random_percentage = math.random() * 100
@@ -260,6 +264,15 @@ local function log(config, message, debug)
     end
 
     table.insert(queue_hashes, message)
+
+    if #queue_hashes >= config:get("batch_size") then 
+      local ok, err = ngx.timer.at(0, send_events_batch, config, user_agent_string, debug)
+      if not ok then
+        if debug then 
+          ngx.log(ngx.ERR, "[moesif] Error while sending events when queue size matches batch size ", err)
+        end
+      end
+    end
   else
     if debug then
       ngx.log(ngx.ERR, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
@@ -268,12 +281,12 @@ local function log(config, message, debug)
 end
 
 -- Run the job
-function runJob(premature, config,  user_agent_string, debug)
+function runJob(premature, config, user_agent_string, debug)
   if not premature then
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the send_events_batch function from the scheduled job - ")
     end
-    send_events_batch(false, config,  user_agent_string, debug)
+    send_events_batch(false, config, user_agent_string, debug)
     
     if debug then
       ngx.log(ngx.ERR, "[moesif] Calling the scheduleJobIfNeeded function to check if needed to schedule the job - ")
@@ -283,7 +296,7 @@ function runJob(premature, config,  user_agent_string, debug)
 end
 
 -- Schedule Events batch job
-function scheduleJobIfNeeded(config, batch_max_time,  user_agent_string, debug)
+function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, debug)
   if queue_scheduled_time == nil then 
     queue_scheduled_time = os.time{year=1970, month=1, day=1, hour=0}
   end
@@ -296,7 +309,7 @@ function scheduleJobIfNeeded(config, batch_max_time,  user_agent_string, debug)
     -- Updating the queue scheduled time
     queue_scheduled_time = os.time()
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config,  user_agent_string, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config, user_agent_string, debug)
     if not scheduleJobOk then
       ngx.log(ngx.ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
@@ -364,7 +377,7 @@ function _M.execute(config, message, user_agent_string, debug)
     ngx.log(ngx.ERR, "[moesif] Calling the log function with message - ", dump(message))
   end
 
-  log(config, message, debug)
+  log(config, message, user_agent_string, debug)
 
   if debug then
     ngx.log(ngx.ERR, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(config:get("queue_scheduled_time")))

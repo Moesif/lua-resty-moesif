@@ -126,7 +126,7 @@ if isempty(config:get("queue_scheduled_time")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.2.5"
+local user_agent_string = "lua-resty-moesif-3scale/1.2.6"
 
 function dump(o)
     if type(o) == 'table' then
