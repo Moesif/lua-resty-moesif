@@ -69,7 +69,7 @@ if isempty(config:get("debug")) then
 end
 
 if isempty(config:get("batch_max_time")) then
-  config:set("batch_max_time", 5)
+  config:set("batch_max_time", 2)
 end
 
 if isempty(config:get("is_batch_job_scheduled")) then
@@ -85,7 +85,7 @@ if isempty(config:get("queue_scheduled_time")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.5"
+local user_agent_string = "lua-resty-moesif/1.2.6"
 
 -- Log Event
 if isempty(config:get("application_id")) then
