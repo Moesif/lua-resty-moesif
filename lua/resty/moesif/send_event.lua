@@ -21,11 +21,19 @@ if isempty(config:get("api_endpoint")) then
 end
 
 if isempty(config:get("timeout")) then
-  config:set("timeout", 10000)
+  config:set("timeout", 1000)
+end
+
+if isempty(config:get("connect_timeout")) then
+  config:set("connect_timeout", 1000)
+end
+
+if isempty(config:get("send_timeout")) then
+  config:set("send_timeout", 2000)
 end
 
 if isempty(config:get("keepalive")) then
-  config:set("keepalive", 10000)
+  config:set("keepalive", 5000)
 end
 
 if isempty(config:get("disable_capture_request_body")) then
@@ -61,7 +69,7 @@ if isempty(config:get("response_header_masks")) then
 end
 
 if isempty(config:get("batch_size")) then
-  config:set("batch_size", 25)
+  config:set("batch_size", 200)
 end
 
 if isempty(config:get("debug")) then
@@ -72,27 +80,35 @@ if isempty(config:get("batch_max_time")) then
   config:set("batch_max_time", 2)
 end
 
-if isempty(config:get("is_batch_job_scheduled")) then
-  config:set("is_batch_job_scheduled", false)
+if isempty(config:get("max_callback_time_spent")) then
+  config:set("max_callback_time_spent", 2000)
 end
 
-if isempty(config:get("enable_compression")) then
-  config:set("enable_compression", false)
+if isempty(config:get("disable_gzip_payload_decompression")) then
+  config:set("disable_gzip_payload_decompression", false)
 end
 
 if isempty(config:get("queue_scheduled_time")) then
   config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
 end
 
+if isempty(config:get("max_body_size_limit")) then
+  config:set("max_body_size_limit", 100000)
+end
+
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.6"
+local user_agent_string = "lua-resty-moesif/1.2.7"
 
 -- Log Event
 if isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");
 else
-  local message = moesif_ser.prepare_message(config)
+  
+  local content_length = ngx.req.get_headers()["content-length"] and ngx.resp.get_headers()["content-length"]
+  if (content_length ~= nil) and (tonumber(content_length) <= config:get("max_body_size_limit")) then 
+    local message = moesif_ser.prepare_message(config)
 
-  -- Execute/Log message
-  log.execute(config, message, user_agent_string, config:get("debug"))
+    -- Execute/Log message
+    log.execute(config, message, user_agent_string, config:get("debug"))
+  end
 end
