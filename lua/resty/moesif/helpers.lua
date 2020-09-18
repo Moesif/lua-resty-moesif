@@ -4,8 +4,10 @@ local _M = {}
 
 -- Read data from the socket
 -- @param `socket`  socket
+-- @param `config`  Configuration table
 -- @return `response` a string with the api call response details
-function _M.read_socket_data(socket)
+function _M.read_socket_data(socket, config)
+  socket:settimeout(config:get("timeout"))
   local response, err, partial = socket:receive("*a")
   if (not response) and (err ~= 'timeout')  then
     return nil, err

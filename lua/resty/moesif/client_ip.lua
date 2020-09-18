@@ -36,7 +36,7 @@ function getClientIpFromXForwardedFor(value)
     end
 
     if type(value) ~= "string" then
-      ngx_log(ngx.CRIT, " X-Forwarded-For Ip Expected string got type - : ", type(value))
+      ngx_log(ngx.DEBUG, " X-Forwarded-For Ip Expected string got type - : ", type(value))
       return nil
     end
 
