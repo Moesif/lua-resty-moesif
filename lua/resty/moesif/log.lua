@@ -316,6 +316,7 @@ local function log(config, message, debug)
     config:set("sample_rate", 100)
   end
 
+  local sampling_rate
   if (config:get("user_sample_rate")) ~= nil then
     sampling_rate = config:get("user_sample_rate")
   else
