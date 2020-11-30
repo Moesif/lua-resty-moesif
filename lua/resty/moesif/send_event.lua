@@ -97,18 +97,14 @@ if isempty(config:get("max_body_size_limit")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.7"
+local user_agent_string = "lua-resty-moesif/1.2.8"
 
 -- Log Event
 if isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");
 else
-  
-  local content_length = ngx.req.get_headers()["content-length"] and ngx.resp.get_headers()["content-length"]
-  if (content_length ~= nil) and (tonumber(content_length) <= config:get("max_body_size_limit")) then 
-    local message = moesif_ser.prepare_message(config)
+  local message = moesif_ser.prepare_message(config)
 
-    -- Execute/Log message
-    log.execute(config, message, user_agent_string, config:get("debug"))
-  end
+  -- Execute/Log message
+  log.execute(config, message, user_agent_string, config:get("debug"))
 end

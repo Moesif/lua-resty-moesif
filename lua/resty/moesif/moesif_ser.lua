@@ -177,14 +177,18 @@ function _M.prepare_message(config)
     api_version = ngx.var.moesif_api_version
   end
 
-  if ngx.var.moesif_req_body == nil or config:get("disable_capture_request_body") then
+  -- Request body
+  local request_content_length = ngx.req.get_headers()["content-length"]
+  if ngx.var.moesif_req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
     request_body_entity = nil
   else
     local request_body_masks = mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
     request_body_entity, req_body_transfer_encoding = parse_body(request_headers, ngx.var.moesif_req_body, request_body_masks, config)
   end
 
-  if ngx.var.moesif_res_body == nil or config:get("disable_capture_response_body") then
+  -- Response body
+  local response_content_length = ngx.resp.get_headers()["content-length"]
+  if ngx.var.moesif_res_body == nil or config:get("disable_capture_response_body") or (response_content_length ~= nil and tonumber(response_content_length) > config:get("max_body_size_limit")) then
     response_body_entity = nil
   else
     local response_body_masks = mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))

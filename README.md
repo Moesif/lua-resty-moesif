@@ -43,12 +43,12 @@ server {
   resolver 8.8.8.8;
 
   # Customer identity variables that Moesif will read downstream
-  set $moesif_user_id nil;
-  set $moesif_company_id nil;
+  set $moesif_user_id "";
+  set $moesif_company_id "";
 
   # Request/Response body variable that Moesif will use downstream
-  set $moesif_req_body nil;
-  set $moesif_res_body nil;
+  set $moesif_req_body "";
+  set $moesif_res_body "";
 
   # Optionally, identify the user and the company (account)
   # from a request or response header, query param, NGINX var, etc
@@ -103,12 +103,12 @@ server {
 
   # Customer identity variables that Moesif will read downstream
   # Set automatically from 3scale management API
-  set $moesif_user_id nil;
-  set $moesif_company_id nil;
+  set $moesif_user_id "";
+  set $moesif_company_id "";
 
   # Request/Response body variable that Moesif will use downstream
-  set $moesif_req_body nil;
-  set $moesif_res_body nil;
+  set $moesif_req_body "";
+  set $moesif_res_body "";
 
   access_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_req_body.lua;
   body_filter_by_lua_file /usr/share/lua/5.1/lua/resty/moesif/read_res_body.lua;
