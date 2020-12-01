@@ -157,7 +157,7 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 (optional) _string_, Request header field name to use to identify the User in Moesif. Defaults to `authorization`.
 
 #### __`authorization_user_id_field`__
-(optional) _string_, A field name use to parse the User from authorization header in Moesif. Defaults to `sub`.
+(optional) _string_, Field name to parse the User from authorization header in Moesif. Defaults to `sub`.
 
 ### 3Scale specific options
 
