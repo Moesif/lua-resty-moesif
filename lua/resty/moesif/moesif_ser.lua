@@ -9,6 +9,7 @@ local random = math.random
 local client_ip = require "client_ip"
 local zzlib = require "zzlib"
 local base64 = require "base64"
+local helpers = require "helpers"
 local _M = {}
 
 -- Split the string
@@ -164,6 +165,50 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.remote_user
   elseif ngx.var.application_id ~= nil then
     user_id_entity = ngx.var.application_id
+  elseif ngx.req.get_headers()[config:get("authorization_header_name")] ~= nil and config:get("authorization_user_id_field") ~= nil then
+
+    -- Fetch the token and field from the config
+    local token = ngx.req.get_headers()[config:get("authorization_header_name")]
+    local field = config:get("authorization_user_id_field")
+
+    -- Check if token is of type Bearer
+    if string.match(token, "Bearer") then
+        -- Fetch the bearer token
+        token = token:gsub("Bearer", "")
+
+        -- Split the bearer token by dot(.)
+        local split_token = {}
+        for line in token:gsub("%f[.]%.%f[^.]", "\0"):gmatch"%Z+" do 
+            table.insert(split_token, line)
+         end
+
+        -- Check if payload is not nil
+        if split_token[2] ~= nil then 
+            -- Parse and set user Id
+            user_id_entity = helpers.parse_authorization_header(split_token[2], field)
+        else
+            user_id_entity = nil  
+        end 
+    -- Check if token is of type Basic
+    elseif string.match(token, "Basic") then
+        -- Fetch the basic token
+        token = token:gsub("Basic", "")
+        -- Decode the token
+        local decoded_token = base64.decode(token)
+        -- Fetch the username and password
+        local username, _ = decoded_token:match("(.*):(.*)")
+
+        -- Set the user_id
+        if username ~= nil then
+            user_id_entity = username 
+        else
+            user_id_entity = nil 
+        end 
+    -- Check if token is of user-defined custom type
+    else
+        -- Parse and set the user_id
+        user_id_entity = helpers.parse_authorization_header(token, field)
+    end
   end
 
   -- Company Id

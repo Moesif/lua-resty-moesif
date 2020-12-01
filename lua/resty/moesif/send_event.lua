@@ -96,8 +96,16 @@ if isempty(config:get("max_body_size_limit")) then
   config:set("max_body_size_limit", 100000)
 end
 
+if isempty(config:get("authorization_header_name")) then
+  config:set("authorization_header_name", "authorization")
+end
+
+if isempty(config:get("authorization_user_id_field")) then
+  config:set("authorization_user_id_field", "sub")
+end
+
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.2.8"
+local user_agent_string = "lua-resty-moesif/1.2.9"
 
 -- Log Event
 if isempty(config:get("application_id")) then

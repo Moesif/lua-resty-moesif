@@ -153,6 +153,12 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 #### __`debug`__
 (optional) _boolean_, Set to true to print debug logs if you're having integration issues.
 
+#### __`authorization_header_name`__
+(optional) _string_, Request header field name to use to identify the User in Moesif. Defaults to `authorization`.
+
+#### __`authorization_user_id_field`__
+(optional) _string_, A field name use to parse the User from authorization header in Moesif. Defaults to `sub`.
+
 ### 3Scale specific options
 
 If you installed for [3Scale API Gateway](https://www.3scale.net/) using `send_event_3Scale.lua`, 
