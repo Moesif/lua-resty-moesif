@@ -35,8 +35,8 @@ init_by_lua_block {
    config:set("application_id", "Your Moesif Application Id")
 }
 
-lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
-lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua";
+lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so;/usr/local/share/lua/5.1/resty/moesif/?.so";
+lua_package_path ";;${prefix}?.lua;${prefix}src/?.lua;/usr/share/lua/5.1/lua/resty/moesif/?.lua;/usr/share/lua/5.1/?.lua;/usr/lib64/lua/5.1/?.lua;/usr/lib/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.lua;/usr/local/share/lua/5.1/resty/moesif/?.lua";
 
 server {
   listen 80;
@@ -152,6 +152,12 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 
 #### __`debug`__
 (optional) _boolean_, Set to true to print debug logs if you're having integration issues.
+
+#### __`authorization_header_name`__
+(optional) _string_, Request header field name to use to identify the User in Moesif. Defaults to `authorization`.
+
+#### __`authorization_user_id_field`__
+(optional) _string_, Field name to parse the User from authorization header in Moesif. Defaults to `sub`.
 
 ### 3Scale specific options
 

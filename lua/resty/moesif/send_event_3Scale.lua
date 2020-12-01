@@ -139,8 +139,16 @@ if isempty(config:get("queue_scheduled_time")) then
     config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
 end
 
+if isempty(config:get("authorization_header_name")) then
+    config:set("authorization_header_name", "authorization")
+  end
+  
+  if isempty(config:get("authorization_user_id_field")) then
+    config:set("authorization_user_id_field", "sub")
+  end
+
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.2.8"
+local user_agent_string = "lua-resty-moesif-3scale/1.2.9"
 
 function dump(o)
     if type(o) == 'table' then
