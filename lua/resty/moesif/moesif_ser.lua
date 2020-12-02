@@ -177,10 +177,7 @@ function _M.prepare_message(config)
         token = token:gsub("Bearer", "")
 
         -- Split the bearer token by dot(.)
-        local split_token = {}
-        for line in token:gsub("%f[.]%.%f[^.]", "\0"):gmatch"%Z+" do 
-            table.insert(split_token, line)
-         end
+        local split_token = helpers.fetch_token_payload(token)
 
         -- Check if payload is not nil
         if split_token[2] ~= nil then 
@@ -206,8 +203,17 @@ function _M.prepare_message(config)
         end 
     -- Check if token is of user-defined custom type
     else
-        -- Parse and set the user_id
-        user_id_entity = helpers.parse_authorization_header(token, field)
+        -- Split the bearer token by dot(.)
+        local split_token = helpers.fetch_token_payload(token)
+
+          -- Check if payload is not nil
+        if split_token[2] ~= nil then 
+            -- Parse and set user Id
+            user_id_entity = helpers.parse_authorization_header(split_token[2], field)
+        else
+            -- Parse and set the user_id
+            user_id_entity = helpers.parse_authorization_header(token, field)
+        end 
     end
   end
 
