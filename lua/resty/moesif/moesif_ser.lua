@@ -165,11 +165,11 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.remote_user
   elseif ngx.var.application_id ~= nil then
     user_id_entity = ngx.var.application_id
-  elseif ngx.req.get_headers()[config:get("authorization_header_name")] ~= nil and config:get("authorization_user_id_field") ~= nil then
+  elseif request_headers[string.lower(config:get("authorization_header_name"))] ~= nil and string.lower(config:get("authorization_user_id_field")) ~= nil then
 
     -- Fetch the token and field from the config
-    local token = ngx.req.get_headers()[config:get("authorization_header_name")]
-    local field = config:get("authorization_user_id_field")
+    local token = request_headers[string.lower(config:get("authorization_header_name"))]
+    local field = string.lower(config:get("authorization_user_id_field"))
 
     -- Check if token is of type Bearer
     if string.match(token, "Bearer") then
