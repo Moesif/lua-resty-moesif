@@ -37,6 +37,16 @@ function _M.parse_url(host_url)
   return parsed_url
 end
 
+-- function to fetch jwt token payload
+function _M.fetch_token_payload(token)
+  -- Split the bearer token by dot(.)
+  local split_token = {}
+  for line in token:gsub("%f[.]%.%f[^.]", "\0"):gmatch"%Z+" do 
+      table.insert(split_token, line)
+   end
+   return split_token
+end
+
 -- function to parse user id from authorization/user-defined headers
 function _M.parse_authorization_header(token, field)
   
