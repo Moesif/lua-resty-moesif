@@ -154,7 +154,7 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 (optional) _boolean_, Set to true to print debug logs if you're having integration issues.
 
 #### __`authorization_header_name`__
-(optional) _string_, Request header field name to use to identify the User in Moesif. Defaults to `authorization`.
+(optional) _string_, Request header field name to use to identify the User in Moesif. Defaults to `authorization`. Also, supports a comma separated string. We will check headers in order like `"X-Api-Key,Authorization"`.
 
 #### __`authorization_user_id_field`__
 (optional) _string_, Field name to parse the User from authorization header in Moesif. Defaults to `sub`.

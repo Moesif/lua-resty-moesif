@@ -165,55 +165,72 @@ function _M.prepare_message(config)
     user_id_entity = ngx.var.remote_user
   elseif ngx.var.application_id ~= nil then
     user_id_entity = ngx.var.application_id
-  elseif request_headers[string.lower(config:get("authorization_header_name"))] ~= nil and string.lower(config:get("authorization_user_id_field")) ~= nil then
-
+  elseif string.lower(config:get("authorization_header_name")) ~= nil and string.lower(config:get("authorization_user_id_field")) ~= nil then
+    -- Split authorization header name by comma
+    local auth_header_names = split(string.lower(config:get("authorization_header_name")), ",")    
+    local token = nil
     -- Fetch the token and field from the config
-    local token = request_headers[string.lower(config:get("authorization_header_name"))]
+    for _, name in pairs(auth_header_names) do
+      local auth_name = name:gsub("%s+", "")
+      if request_headers[auth_name] ~= nil then 
+        if type(request_headers[auth_name]) == "table" and (request_headers[auth_name][0] ~= nil or request_headers[auth_name][1] ~= nil) then 
+            token = request_headers[auth_name][0] or request_headers[auth_name][1]
+        else
+            token = request_headers[auth_name]
+        end
+        break
+      end
+    end
     local field = string.lower(config:get("authorization_user_id_field"))
 
-    -- Check if token is of type Bearer
-    if string.match(token, "Bearer") then
-        -- Fetch the bearer token
-        token = token:gsub("Bearer", "")
+    if token ~= nil then 
 
-        -- Split the bearer token by dot(.)
-        local split_token = helpers.fetch_token_payload(token)
+      -- Check if token is of type Bearer
+      if string.match(token, "Bearer") then
+          -- Fetch the bearer token
+          token = token:gsub("Bearer", "")
 
-        -- Check if payload is not nil
-        if split_token[2] ~= nil then 
-            -- Parse and set user Id
-            user_id_entity = helpers.parse_authorization_header(split_token[2], field)
-        else
-            user_id_entity = nil  
-        end 
-    -- Check if token is of type Basic
-    elseif string.match(token, "Basic") then
-        -- Fetch the basic token
-        token = token:gsub("Basic", "")
-        -- Decode the token
-        local decoded_token = base64.decode(token)
-        -- Fetch the username and password
-        local username, _ = decoded_token:match("(.*):(.*)")
-
-        -- Set the user_id
-        if username ~= nil then
-            user_id_entity = username 
-        else
-            user_id_entity = nil 
-        end 
-    -- Check if token is of user-defined custom type
-    else
-        -- Split the bearer token by dot(.)
-        local split_token = helpers.fetch_token_payload(token)
+          -- Split the bearer token by dot(.)
+          local split_token = helpers.fetch_token_payload(token)
 
           -- Check if payload is not nil
-        if split_token[2] ~= nil then 
-            -- Parse and set user Id
-            user_id_entity = helpers.parse_authorization_header(split_token[2], field)
-        else
-            -- Parse and set the user_id
-            user_id_entity = helpers.parse_authorization_header(token, field)
-        end 
+          if split_token[2] ~= nil then 
+              -- Parse and set user Id
+              user_id_entity = helpers.parse_authorization_header(split_token[2], field)
+          else
+              user_id_entity = nil  
+          end 
+      -- Check if token is of type Basic
+      elseif string.match(token, "Basic") then
+          -- Fetch the basic token
+          token = token:gsub("Basic", "")
+          -- Decode the token
+          local decoded_token = base64.decode(token)
+          -- Fetch the username and password
+          local username, _ = decoded_token:match("(.*):(.*)")
+
+          -- Set the user_id
+          if username ~= nil then
+              user_id_entity = username 
+          else
+              user_id_entity = nil 
+          end 
+      -- Check if token is of user-defined custom type
+      else
+          -- Split the bearer token by dot(.)
+          local split_token = helpers.fetch_token_payload(token)
+
+            -- Check if payload is not nil
+          if split_token[2] ~= nil then 
+              -- Parse and set user Id
+              user_id_entity = helpers.parse_authorization_header(split_token[2], field)
+          else
+              -- Parse and set the user_id
+              user_id_entity = helpers.parse_authorization_header(token, field)
+          end 
+      end
+    else
+      user_id_entity = nil
     end
   end
 
