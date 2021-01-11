@@ -57,8 +57,14 @@ function _M.parse_authorization_header(token, field)
     local json_decode_ok, decoded_payload = pcall(cjson.decode, payload)
     if json_decode_ok then
       -- Fetch the user_id
-      if type(decoded_payload) == "table" and next(decoded_payload) ~= nil and decoded_payload[field] ~= nil then 
-        return tostring(decoded_payload[field])
+      if type(decoded_payload) == "table" and next(decoded_payload) ~= nil then 
+        -- Convert keys to lowercase
+        for k, v in pairs(decoded_payload) do
+          decoded_payload[string.lower(k)] = v
+        end   
+        if decoded_payload[field] ~= nil then 
+          return tostring(decoded_payload[field])
+        end
       end
     end
   end
