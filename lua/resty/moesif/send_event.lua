@@ -9,7 +9,7 @@ local function isempty(s)
 end
 
 -- Global config
-config = ngx.shared.moesif_conf;
+local config = ngx.shared.moesif_conf;
 
 -- Set Default values.
 if isempty(config:get("disable_transaction_id")) then
@@ -105,7 +105,7 @@ if isempty(config:get("authorization_user_id_field")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.3.3"
+local user_agent_string = "lua-resty-moesif/1.3.4"
 
 -- Log Event
 if isempty(config:get("application_id")) then

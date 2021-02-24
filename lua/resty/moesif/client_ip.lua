@@ -2,7 +2,7 @@ local _M = {}
 local ngx_log = ngx.log
 
 -- Function to get the Type of the Ip
-function get_ip_type(ip)
+local function get_ip_type(ip)
     local R = {ERROR = 0, IPV4 = 1, IPV6 = 2, STRING = 3}
     if type(ip) ~= "string" then return R.ERROR end
 
@@ -29,8 +29,18 @@ function get_ip_type(ip)
     return R.STRING
 end
 
+-- Function to check if it is valid Ip Address
+local function is_ip(value)
+    local ip_type = get_ip_type(value)
+    if ip_type == 1 or ip_type == 2 then
+     return true
+    else
+     return false
+    end
+ end
+
 -- Function to get the client Ip from the X-forwarded-for header
-function getClientIpFromXForwardedFor(value)
+local function getClientIpFromXForwardedFor(value)
     if value == nil then
       return nil
     end
@@ -67,16 +77,6 @@ function getClientIpFromXForwardedFor(value)
         return value
       end
     end
-end
-
--- Function to check if it is valid Ip Address
-function is_ip(value)
-   local ip_type = get_ip_type(value)
-   if ip_type == 1 or ip_type == 2 then
-    return true
-   else
-    return false
-   end
 end
 
 -- Function to get the client Ip
