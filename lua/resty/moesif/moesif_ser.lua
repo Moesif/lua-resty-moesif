@@ -16,7 +16,7 @@ local _M = {}
 local function split(str, character)
   local result = {}
 
-  index = 1
+  local index = 1
   for s in string.gmatch(str, "[^"..character.."]+") do
     result[index] = s
     index = index + 1
@@ -26,7 +26,7 @@ local function split(str, character)
 end
 
 -- Mask Body
-function mask_body(body, masks)
+local function mask_body(body, masks)
   if masks == nil then return body end
   if body == nil then return body end
   for mask_key, mask_value in pairs(masks) do
@@ -39,16 +39,16 @@ function mask_body(body, masks)
   return body
 end
 
-function base64_encode_body(body)
+local function base64_encode_body(body)
   return base64.encode(body), 'base64'
 end
 
-function is_valid_json(body)
+local function is_valid_json(body)
     return type(body) == "string" 
         and string.sub(body, 1, 1) == "{" or string.sub(body, 1, 1) == "["
 end
 
-function process_data(body, mask_fields)
+local function process_data(body, mask_fields)
   local body_entity = nil
   local body_transfer_encoding = nil
   local is_deserialised, deserialised_body = pcall(cjson_safe.decode, body)
@@ -69,7 +69,7 @@ function process_data(body, mask_fields)
   return body_entity, body_transfer_encoding
 end
 
-function decompress_body(body, masks)
+local function decompress_body(body, masks)
   local body_entity = nil
   local body_transfer_encoding = nil
 
@@ -92,7 +92,7 @@ function decompress_body(body, masks)
   return body_entity, body_transfer_encoding
 end
 
-function mask_headers(headers, mask_fields)
+local function mask_headers(headers, mask_fields)
   local mask_headers = nil
 
   for k,v in pairs(mask_fields) do
@@ -108,7 +108,7 @@ function mask_headers(headers, mask_fields)
   return mask_headers
 end
 
-function mask_body_fields(body_masks_config, deprecated_body_masks_config)
+local function mask_body_fields(body_masks_config, deprecated_body_masks_config)
   if next(body_masks_config) == nil then
     return deprecated_body_masks_config
   else
@@ -116,7 +116,7 @@ function mask_body_fields(body_masks_config, deprecated_body_masks_config)
   end
 end
 
-function parse_body(headers, body, mask_fields, config)
+local function parse_body(headers, body, mask_fields, config)
   local body_entity = nil
   local body_transfer_encoding = nil
 

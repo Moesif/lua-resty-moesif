@@ -20,7 +20,7 @@ local function isempty(s)
 end
 
 -- Global config
-config = ngx.shared.moesif_conf;
+local config = ngx.shared.moesif_conf;
 
 -- Set Default values.
 if isempty(config:get("disable_transaction_id")) then
@@ -148,7 +148,7 @@ if isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.3"
+local user_agent_string = "lua-resty-moesif-3scale/1.3.4"
 
 function dump(o)
     if type(o) == 'table' then

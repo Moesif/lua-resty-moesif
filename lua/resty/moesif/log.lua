@@ -65,7 +65,7 @@ end
 
 -- Get App Config function
 -- @param `conf`     Configuration table, holds http endpoint details
-function get_config_internal(config, debug)
+local function get_config_internal(config, debug)
   
   local config_socket = ngx.socket.tcp()
   config_socket:settimeout(config:get("connect_timeout"))
@@ -139,7 +139,7 @@ function get_config_internal(config, debug)
 end
 
 -- Get App Config function
-function get_config(premature, config, debug)
+local function get_config(premature, config, debug)
   if premature then
     return
   end
