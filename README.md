@@ -42,7 +42,6 @@ server {
   listen 80;
   resolver 8.8.8.8;
 
-  set $moesif_company_id "";
   # Define the variables Moesif requires
   set $moesif_user_id nil;
   set $moesif_company_id nil;
