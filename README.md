@@ -1,31 +1,31 @@
-# Moesif Plugin for NGINX OpenResty
+# Moesif Plugin for NGINX
 
-[NGINX](https://www.nginx.com/) [OpenResty](https://openresty.org/en/) plugin that logs API calls to [Moesif](https://www.moesif.com) for API analytics and monitoring.
-This plugin can be used with a generic NGINX OpenResty installation or for API gateways that are built on top of OpenResty such as [3Scale API Gateway](https://www.3scale.net/). 
+NGINX Lua plugin to log API calls to [Moesif](https://www.moesif.com) for API analytics and monitoring.
+
+This plugin supports any [NGINX Open Source and NGINX Plus](https://www.nginx.com/) variant that has [OpenResty installed](https://openresty.org/en/) including API gateways built on top of OpenResty like [3Scale API Gateway](https://www.3scale.net/).
 
 [Github Repo](https://github.com/Moesif/lua-resty-moesif)
 
 ## How to install 
 
-The recommended way to install Moesif is via Luarocks:
+Ensure you have [lua-nginx-module](https://github.com/openresty/lua-nginx-module) installed.
+If you're running an OpenResty image, it's already installed. 
+
+If you're using NGINX Plus, [follow these instructions](https://docs.nginx.com/nginx/admin-guide/dynamic-modules/lua/).
+
+
+Install Moesif Luarock:
 
 ```bash
 luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
 ```
 
-Alternatively, OpenResty provides its own package manager, OPM, which can be used to install Moesif.
-Keep in mind OPM is not well maintained and release acceptance may be delayed by a few days, which is why we recommend LuaRocks, if possible.
-
-```bash
-opm get Moesif/lua-resty-moesif
-```
-
 ## How to use (Generic OpenResty)
 
-Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
-Replace `/usr/local/openresty/luajit/share/lua/5.1/resty` with the correct lua plugin installation path, if necessary.
+Edit your `nginx.conf` file to add the Moesif plugin. 
 
-_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`. Sometimes luarocks installs packages in multiple locations, just choose one._
+If necessary, replace `/usr/local/openresty/luajit/share/lua/5.1/resty` with the correct lua plugin installation path.
+This can be found using `find / -name "moesif" -type d`. If there are multiple paths, just pick one.
 
 ```nginx
 lua_shared_dict moesif_conf 5m;
@@ -42,20 +42,21 @@ server {
   listen 80;
   resolver 8.8.8.8;
 
-  # Customer identity variables that Moesif will read downstream
-  set $moesif_user_id "";
   set $moesif_company_id "";
+  # Define the variables Moesif requires
+  set $moesif_user_id nil;
+  set $moesif_company_id nil;
+  set $moesif_req_body nil;
+  set $moesif_res_body nil;
 
-  # Request/Response body variable that Moesif will use downstream
-  set $moesif_req_body "";
-  set $moesif_res_body "";
-
-  # Optionally, identify the user and the company (account)
-  # from a request or response header, query param, NGINX var, etc
+  # Optionally, set moesif_user_id and moesif_company_id such from
+  # a request header or NGINX var to identify customer
   header_filter_by_lua_block  { 
     ngx.var.moesif_user_id = ngx.req.get_headers()["X-User-Id"]
     ngx.var.moesif_company_id = ngx.req.get_headers()["X-Company-Id"]
   }
+
+  # Add Moesif plugin. You may need to update install path
 
   access_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/read_req_body.lua;
   body_filter_by_lua_file /usr/local/openresty/luajit/share/lua/5.1/resty/moesif/read_res_body.lua;
@@ -262,7 +263,6 @@ An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-examp
 Congratulations! If everything was done correctly, Moesif should now be tracking all network requests that match the route you specified earlier. If you have any issues with set up, please reach out to support@moesif.com.
 
 
-
 ## Other integrations
 
-To view more documentation on integration options, please visit __[the Integration Options Documentation](https://www.moesif.com/docs/getting-started/integration-options/).__
+To view more documentation on integration options, please visit __[the Integration Options](https://www.moesif.com/docs/getting-started/integration-options/).__
