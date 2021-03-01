@@ -22,10 +22,12 @@ luarocks install --server=http://luarocks.org/manifests/moesif lua-resty-moesif
 
 ## How to use (Generic OpenResty)
 
-Edit your `nginx.conf` file to add the Moesif plugin. 
+Edit your `nginx.conf` file to add the Moesif plugin.
 
 If necessary, replace `/usr/local/openresty/luajit/share/lua/5.1/resty` with the correct lua plugin installation path.
 This can be found using `find / -name "moesif" -type d`. If there are multiple paths, just pick one.
+
+> NGINX supports using a directive like `log_by_lua*` only once in the same section. If you're already using the same NGINX directives used by Moesif, you may need to adjust your config. [See OpenResty docs](https://openresty.org/en/faq.html#why-cant-i-use-duplicate-configuration-directives).
 
 ```nginx
 lua_shared_dict moesif_conf 5m;
@@ -75,10 +77,12 @@ Installing Moesif plugin for [3Scale API Gateway](https://www.3scale.net/) is th
 1. Add 3scale specific configuration options to fetch additional user context from 3scale management API
 2. Replace `send_event.lua`, with `send_event_3Scale.lua` 
 
-Edit your `nginx.conf` file to configure Moesif OpenResty plugin:
-Replace `/usr/share/lua/5.1/lua/resty` with the correct lua plugin installation path, if necessary.
+Edit your `nginx.conf` file to add the Moesif plugin.
 
-_If you're unsure of the installation path, you can find it via: `find / -name "moesif" -type d`. Sometimes luarocks installs packages in multiple locations, just choose one._
+If necessary, replace `/usr/share/lua/5.1/lua/resty` with the correct lua plugin installation path.
+This can be found using `find / -name "moesif" -type d`. If there are multiple paths, just pick one.
+
+> NGINX supports using a directive like `log_by_lua*` only once in the same section. If you're already using the same NGINX directives used by Moesif, you may need to adjust your config. [See OpenResty docs](https://openresty.org/en/faq.html#why-cant-i-use-duplicate-configuration-directives).
 
 Below is a sample configuration for 3scale:
 
