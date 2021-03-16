@@ -105,14 +105,17 @@ if isempty(config:get("authorization_user_id_field")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.3.4"
+local user_agent_string = "lua-resty-moesif/1.3.5"
 
 -- Log Event
 if isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");
 else
-  local message = moesif_ser.prepare_message(config)
+  local logEvent = ngx.var.moesif_log_event
+  if (logEvent == nil or logEvent == '') or (string.lower(logEvent) == "true") then
+    local message = moesif_ser.prepare_message(config)
 
-  -- Execute/Log message
-  log.execute(config, message, user_agent_string, config:get("debug"))
+    -- Execute/Log message
+    log.execute(config, message, user_agent_string, config:get("debug"))
+  end
 end

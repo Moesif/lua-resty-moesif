@@ -221,6 +221,9 @@ _If you installed for 3scale, you do not need to set this field as this is handl
 #### __`moesif_api_version`__
 (optional) _boolean_, An optional API Version you want to tag this request with.
 
+#### __`moesif_log_event`__
+(optional) _boolean_, An optional flag if set to `false`, will skip capturing api call for that location context. By default, all the api calls will be captured. For example, when `set $moesif_log_event false;` for a location context, Moesif will not log api calls for that location. 
+
 ## Troubleshooting
 
 ### Response body not being logged
