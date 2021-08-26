@@ -1,8 +1,6 @@
 local ngx_now = ngx.now
 local req_get_method = ngx.req.get_method
 local req_start_time = ngx.req.start_time
-local req_get_headers = ngx.req.get_headers
-local res_get_headers = ngx.resp.get_headers
 local cjson = require "cjson"
 local cjson_safe = require "cjson.safe"
 local random = math.random
@@ -11,6 +9,20 @@ local zzlib = require "zzlib"
 local base64 = require "base64"
 local helpers = require "helpers"
 local _M = {}
+local ngx_log = ngx.log
+
+function dump(o)
+  if type(o) == 'table' then
+    local s = '{ '
+    for k,v in pairs(o) do
+      if type(k) ~= 'number' then k = '"'..k..'"' end
+      s = s .. '['..k..'] = ' .. dump(v) .. ','
+    end
+    return s .. '} '
+  else
+    return tostring(o)
+  end
+end
 
 -- Split the string
 local function split(str, character)
@@ -147,6 +159,14 @@ function _M.prepare_message(config)
   local rsp_body_transfer_encoding = nil
   local request_headers = ngx.req.get_headers()
   local response_headers = ngx.resp.get_headers()
+
+  local debug = config:get("debug")
+
+  if debug then
+    ngx_log(ngx.DEBUG, "[moesif] request headers from ngx.req while preparing message ", dump(request_headers))
+    ngx_log(ngx.DEBUG, "[moesif] response headers from ngx.resp while preparing message ", dump(response_headers))
+  end
+
 
   -- User Id
   if ngx.var.credentials ~= nil and ngx.var.credentials.app_id ~= nil then
@@ -311,6 +331,11 @@ function _M.prepare_message(config)
   -- Add Transaction Id to the response header
   if not config:get("disable_transaction_id") and transaction_id ~= nil then
     response_headers["X-Moesif-Transaction-Id"] = transaction_id
+  end
+
+  if debug then
+    ngx_log(ngx.DEBUG, "[moesif] request headers before sending to moesif ", dump(request_headers))
+    ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", dump(response_headers))
   end
 
   return {
