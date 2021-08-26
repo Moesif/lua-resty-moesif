@@ -11,7 +11,7 @@ local helpers = require "helpers"
 local _M = {}
 local ngx_log = ngx.log
 
-function dump(o)
+local function dump(o)
   if type(o) == 'table' then
     local s = '{ '
     for k,v in pairs(o) do
