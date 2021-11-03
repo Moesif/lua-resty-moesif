@@ -148,7 +148,7 @@ if isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.7"
+local user_agent_string = "lua-resty-moesif-3scale/1.3.8"
 
 function dump(o)
     if type(o) == 'table' then
@@ -216,95 +216,98 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
     end
 
     -- Read the response
-    local config_response = helpers.read_socket_data(sock, config)
-    if debug then
-        ngx_log(ngx.DEBUG, "[moesif] Response after calling the 3Scale admin api to fetch application context - ", config_response)
-    end
-    
-    local response_body = config_response:match("(%<.*>)")
-    if debug then
-        ngx_log(ngx.DEBUG, "[moesif] After fetching the application context from the 3Scale API Response - ", response_body)
-    end
-    if response_body ~= nil then 
-        local ok_config, err_config = config_socket:setkeepalive(10000)
-        if not ok_config then
-            if debug then
-                ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err_config)
-            end
-            local close_ok, close_err = config_socket:close()
-            if not close_ok then
+    local config_response, config_response_error = helpers.read_socket_data(sock, config)
+    if config_response_error == nil then 
+        if debug then
+            ngx_log(ngx.DEBUG, "[moesif] Response after calling the 3Scale admin api to fetch application context - ", config_response)
+        end
+        
+        local response_body = config_response:match("(%<.*>)")
+        if debug then
+            ngx_log(ngx.DEBUG, "[moesif] After fetching the application context from the 3Scale API Response - ", response_body)
+        end
+        if response_body ~= nil then 
+            local ok_config, err_config = config_socket:setkeepalive(10000)
+            if not ok_config then
                 if debug then
-                    ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
+                    ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err_config)
+                end
+                local close_ok, close_err = config_socket:close()
+                if not close_ok then
+                    if debug then
+                        ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
+                    end
+                else
+                    if debug then
+                        ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
+                    end
                 end
             else
                 if debug then
-                    ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
+                    ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok_config)
+                end
+            end
+
+            local xobject = xml.eval(response_body)
+            local xapplication = xobject:find("application")
+            if xapplication ~= nil then
+                local xtable = {}
+                for k, v in pairs(xapplication) do
+                    if v ~= nil and type(v) == "table" then 
+                        xtable[v:tag()] = k
+                    end
+                end
+
+                local key = xapplication[xtable[user_id_name]]
+                if key ~= nil then 
+                    if debug then
+                        ngx_log(ngx.DEBUG, "[moesif] Successfully fetched the userId from the application context", key[1])
+                    end
+                    if key[1] ~= nil and key[1] ~= "nil" and key[1] ~= "null" and key[1] ~= '' then
+                        ngx.shared.user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
+                        message["user_id"] = key[1]
+                    else
+                        if debug then
+                            ngx_log(ngx.DEBUG, "[moesif] The fetched userId from the application context is empty, skipped caching the userId")
+                        end 
+                    end
+                else 
+                    if debug then
+                        ngx_log(ngx.DEBUG, "[moesif] The user_id_name provided by the user does not exist in the response. The user_id_name provided is - ", user_id_name)
+                    end
+                end
+
+                local companyKey = xapplication[xtable[company_id_name]]
+                if companyKey ~= nil then 
+                    if debug then
+                        ngx_log(ngx.DEBUG, "[moesif] Successfully fetched the companyId from the application context ", companyKey[1])
+                    end
+                    if companyKey[1] ~= nil and companyKey[1] ~= "nil" and companyKey[1] ~= "null" and companyKey[1] ~= '' then
+                        ngx.shared.company_id_cache:set(auth_key_name, companyKey[1], config:get("3Scale_cache_ttl"))
+                        message["company_id"] = companyKey[1]
+                    else
+                        if debug then
+                            ngx_log(ngx.DEBUG, "[moesif] The fetched companyId from the application context is empty, skipped caching the companyId")
+                        end 
+                    end
+                else 
+                    if debug then
+                        ngx_log(ngx.DEBUG, "[moesif] The company_id_name provided by the user does not exist in the response. The company_id_name provided is - ", company_id_name)
+                    end
+                end
+            else
+                if debug then
+                    ngx_log(ngx.DEBUG, "[moesif] application tag does not exist in the application context ")
                 end
             end
         else
             if debug then
-                ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok_config)
-            end
-        end
-
-        local xobject = xml.eval(response_body)
-        local xapplication = xobject:find("application")
-        if xapplication ~= nil then
-            local xtable = {}
-            for k, v in pairs(xapplication) do
-                if v ~= nil and type(v) == "table" then 
-                    xtable[v:tag()] = k
-                end
-            end
-
-            local key = xapplication[xtable[user_id_name]]
-            if key ~= nil then 
-                if debug then
-                    ngx_log(ngx.DEBUG, "[moesif] Successfully fetched the userId from the application context", key[1])
-                end
-                if key[1] ~= nil and key[1] ~= "nil" and key[1] ~= "null" and key[1] ~= '' then
-                    ngx.shared.user_id_cache:set(auth_key_name, key[1], config:get("3Scale_cache_ttl"))
-                    message["user_id"] = key[1]
-                else
-                    if debug then
-                        ngx_log(ngx.DEBUG, "[moesif] The fetched userId from the application context is empty, skipped caching the userId")
-                    end 
-                end
-            else 
-                if debug then
-                    ngx_log(ngx.DEBUG, "[moesif] The user_id_name provided by the user does not exist in the response. The user_id_name provided is - ", user_id_name)
-                end
-            end
-
-            local companyKey = xapplication[xtable[company_id_name]]
-            if companyKey ~= nil then 
-                if debug then
-                    ngx_log(ngx.DEBUG, "[moesif] Successfully fetched the companyId from the application context ", companyKey[1])
-                end
-                if companyKey[1] ~= nil and companyKey[1] ~= "nil" and companyKey[1] ~= "null" and companyKey[1] ~= '' then
-                    ngx.shared.company_id_cache:set(auth_key_name, companyKey[1], config:get("3Scale_cache_ttl"))
-                    message["company_id"] = companyKey[1]
-                else
-                    if debug then
-                        ngx_log(ngx.DEBUG, "[moesif] The fetched companyId from the application context is empty, skipped caching the companyId")
-                    end 
-                end
-            else 
-                if debug then
-                    ngx_log(ngx.DEBUG, "[moesif] The company_id_name provided by the user does not exist in the response. The company_id_name provided is - ", company_id_name)
-                end
-            end
-        else
-            if debug then
-                ngx_log(ngx.DEBUG, "[moesif] application tag does not exist in the application context ")
+                ngx_log(ngx.DEBUG, "[moesif] The response body does not exist or is not in xml format")
             end
         end
     else
-        if debug then
-            ngx_log(ngx.DEBUG, "[moesif] The response body does not exist or is not in xml format")
-        end
+        ngx_log(ngx.DEBUG,"[moesif] error while reading response after fetching app config - ", config_response_error)
     end
-
     if debug then
         ngx_log(ngx.DEBUG, "[moesif] Calling the function to log the Event ")
     end

@@ -17,9 +17,9 @@ function _M.get_connection(config, api_endpoint, url_path, sock)
   local parsed_url = helper.parse_url(api_endpoint..url_path)
   local host = parsed_url.host
   local port = tonumber(parsed_url.port)
-  local debug = config:get("debug")
+  local debug = config.debug
 
-  sock:settimeout(config:get("connect_timeout"))
+  sock:settimeout(config.connect_timeout)
   local ok, err = sock:connect(host, port)
   if not ok then
     if debug then
