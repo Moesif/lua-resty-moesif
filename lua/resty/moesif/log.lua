@@ -18,6 +18,7 @@ local gc = 0
 local health_check = 0
 local rec_event = 0
 local sent_event = 0
+local merge_config = 0
 local _M = {}
 
 -- Generates http payload
@@ -50,7 +51,7 @@ end
 
 -- Send Payload
 local function send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
-  local application_id = config:get("application_id")
+  local application_id = config.application_id
   local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug) .. "\r\n")
   if not ok then
     if debug then
@@ -68,14 +69,14 @@ end
 local function get_config_internal(config, debug)
   
   local config_socket = ngx.socket.tcp()
-  config_socket:settimeout(config:get("connect_timeout"))
-  local sock, parsed_url = connect.get_connection(config, config:get("api_endpoint"), "/v1/config", config_socket)
+  config_socket:settimeout(config.connect_timeout)
+  local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/config", config_socket)
 
   if type(config_socket) == "table" and next(config_socket) ~= nil then
     -- Prepare the payload
     local payload = string_format(
       "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\n",
-      "GET", parsed_url.path, parsed_url.host, config:get("application_id"))
+      "GET", parsed_url.path, parsed_url.host, config.application_id)
 
       -- Send the request
       local ok, err = config_socket:send(payload .. "\r\n")
@@ -90,50 +91,70 @@ local function get_config_internal(config, debug)
       end
 
       -- Read the response
-      local config_response = helpers.read_socket_data(config_socket, config)
-      if config_response ~= nil then
-        
-        local ok_config, err_config = config_socket:setkeepalive(config:get("keepalive"))
-        if not ok_config then
-          if debug then
-            ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err_config)
-          end
-          local close_ok, close_err = config_socket:close()
-          if not close_ok then
-              if debug then
-                  ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
-              end
+      local config_response, config_response_error = helpers.read_socket_data(config_socket, config)
+      if config_response_error == nil then 
+        if config_response ~= nil then
+          
+          local ok_config, err_config = config_socket:setkeepalive(config.keepalive)
+          if not ok_config then
+            if debug then
+              ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err_config)
+            end
+            local close_ok, close_err = config_socket:close()
+            if not close_ok then
+                if debug then
+                    ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
+                end
+            else
+                if debug then
+                    ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
+                end
+            end
           else
-              if debug then
-                  ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
+            if debug then
+              ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok_config)
+            end
+          end
+
+          local raw_config_response = config_response:match("(%{.*})")
+          if raw_config_response ~= nil then
+            local response_body = cjson.decode(raw_config_response)
+            local config_tag = string.match(config_response, "ETag%s*:%s*(.-)\n")
+
+            if config_tag ~= nil then
+              config["ETag"] = config_tag
+            end
+    
+            if (config["sample_rate"] ~= nil) and (response_body ~= nil) then
+
+              if (response_body["user_sample_rate"] ~= nil) then
+                config["user_sample_rate"] = response_body["user_sample_rate"]
               end
+  
+              if (response_body["company_sample_rate"] ~= nil) then
+                config["company_sample_rate"] = response_body["company_sample_rate"]
+              end
+  
+              if (response_body["regex_config"] ~= nil) then
+                config["regex_config"] = response_body["regex_config"]
+              end
+  
+              if (response_body["sample_rate"] ~= nil) then 
+                config["sample_rate"] = response_body["sample_rate"]
+              end
+            end
+            config.is_config_fetched = true
+          else
+            if debug then
+              ngx_log(ngx.DEBUG, "[moesif] raw config response is nil so could not decode it, the config response is - " .. tostring(config_response))
+            end
           end
         else
-          if debug then
-            ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok_config)
-          end
+          ngx_log(ngx.DEBUG, "[moesif] application config is nil ")
         end
-
-        local response_body = cjson.decode(config_response:match("(%{.*})"))
-        local config_tag = string.match(config_response, "ETag%s*:%s*(.-)\n")
-
-        if config_tag ~= nil then
-          config:set("ETag", config_tag)
-        end
-
-        if (config:get("sample_rate") ~= nil) and (response_body ~= nil) then
-          if (response_body["user_sample_rate"] ~= nil) and (config:get("user_id") ~= nil) then
-            config:set("user_sample_rate", response_body["user_sample_rate"][config:get("user_id")])
-          else 
-            config:set("sample_rate", response_body["sample_rate"])
-          end
-        end
-
-      else
-        ngx_log(ngx.DEBUG, "[moesif] application config is nil ")
+      else 
+        ngx_log(ngx.DEBUG,"[moesif] error while reading response after fetching app config - ", config_response_error)
       end
-      
-      config:set("is_config_fetched", true)
       return config_response
   end
 end
@@ -183,15 +204,14 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   local batch_events = {}
 
   -- Getting the configuration
-  -- configuration = config_hashes
   local local_queue = queue_hashes
   queue_hashes = {}
   repeat
-      if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes:get("max_callback_time_spent")) then
+      if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes.max_callback_time_spent) then
         ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif")
-        
+
         local start_con_time = socket.gettime()*1000
-        local sock, parsed_url = connect.get_connection(config, config:get("api_endpoint"), "/v1/events/batch", send_events_socket)
+        local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/events/batch", send_events_socket)
         local end_con_time = socket.gettime()*1000
         if debug then
           ngx_log(ngx.DEBUG, "[moesif] get connection took time - ".. tostring(end_con_time - start_con_time).." for pid - ".. ngx.worker.pid())
@@ -204,7 +224,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
             local event = table.remove(local_queue)
             counter = counter + 1
             table.insert(batch_events, event)
-            if (#batch_events == config:get("batch_size")) then
+            if (#batch_events == config.batch_size) then
               local start_pay_time = socket.gettime()*1000
               if pcall(send_payload, send_events_socket, parsed_url, batch_events, config, user_agent_string, debug) then 
                 sent_event = sent_event + #batch_events
@@ -226,7 +246,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
                 batch_events = {}
               end
             end
-          until counter == config:get("batch_size") or next(local_queue) == nil
+          until counter == config.batch_size or next(local_queue) == nil
   
           if #local_queue > 0 then
             has_events = true
@@ -311,16 +331,40 @@ local function log(config, message, debug)
 
   -- Sampling Events
   local random_percentage = math.random() * 100
+  local user_sampling_rate = nil
+  local company_sampling_rate = nil
+  local regex_sampling_rate = nil
+  local sampling_rate = 100
 
-  if config:get("sample_rate") == nil then
-    config:set("sample_rate", 100)
+  if config.sample_rate == nil then
+    config.sample_rate = 100
   end
 
-  local sampling_rate
-  if (config:get("user_sample_rate")) ~= nil then
-    sampling_rate = config:get("user_sample_rate")
+  -- calculate user level sample rate
+  if type(config.user_sample_rate) == "table" and next(config.user_sample_rate) ~= nil and message["user_id"] ~= nil and config.user_sample_rate[message["user_id"]] ~= nil then
+    user_sampling_rate = config.user_sample_rate[message["user_id"]]
+  end
+
+  -- calculate company level sample rate
+  if type(config.company_sample_rate) == "table" and next(config.company_sample_rate) ~= nil and message["company_id"] ~= nil and config.company_sample_rate[message["company_id"]] ~= nil then
+    company_sampling_rate = config.company_sample_rate[message["company_id"]]
+  end
+
+  -- calculate regex sample rate
+  if type(config.regex_config) == "table" and next(config.regex_config) ~= nil then
+    local config_mapping = helpers.prepare_config_mapping(message)
+    local ok, sample_rate, block_rule = pcall(helpers.fetch_sample_rate_block_request_on_regex_match, config.regex_config, config_mapping)
+    if ok then
+      regex_sampling_rate = sample_rate
+    end
+  end
+
+  -- sampling rate will be the minimum of all specific sample rates if any of them are defined
+  if user_sampling_rate ~= nil or company_sampling_rate  ~= nil or regex_sampling_rate  ~= nil then
+    sampling_rate = math.min((user_sampling_rate or 100), (company_sampling_rate or 100), (regex_sampling_rate or 100))
   else
-    sampling_rate = config:get("sample_rate")
+    -- no specific sample rates defined, use the global sampling rate
+    sampling_rate = config.sample_rate
   end
 
   if sampling_rate >= random_percentage then
@@ -353,7 +397,7 @@ local function runJob(premature, config, user_agent_string, debug)
     -- Updating the queue scheduled time
     queue_scheduled_time = os.time()
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config, user_agent_string, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config.batch_max_time, runJob, config, user_agent_string, debug)
     if not scheduleJobOk then
       ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
@@ -379,7 +423,7 @@ local function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, de
     -- Updating the queue scheduled time
     queue_scheduled_time = os.time()
 
-    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config:get("batch_max_time"), runJob, config, user_agent_string, debug)
+    local scheduleJobOk, scheduleJobErr = ngx.timer.at(config.batch_max_time, runJob, config, user_agent_string, debug)
     if not scheduleJobOk then
       ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
@@ -394,27 +438,39 @@ local function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, de
   end
 end
 
+function mergeConfigs(config)
+  -- Fetch all the keys from ngx shared dict
+  -- Default to 1024 (https://github.com/openresty/lua-nginx-module#ngxshareddictget_keys)
+  local configKeys = config:get_keys(1024)
+  -- Iterate through the list of configKeys and merge into config_hashes
+  for _, key in ipairs(configKeys) do
+      config_hashes[key] = config:get(key)
+  end
+end
+
 function _M.execute(config, message, user_agent_string, debug)
   -- Get Application Id
   local application_id = config:get("application_id")
 
-  if message["user_id"] ~= nil then 
-    config:set("user_id", message["user_id"])
-  else 
-    config:set("user_id", nil)
-  end
-
   -- Execute
   if next(config_hashes) == nil then
-    if config:get("user_sample_rate") == nil then
-      config:set("user_sample_rate", nil)
-    end
-    if config:get("is_config_fetched") == nil then
+    config_hashes["sample_rate"] = 100
+    config_hashes["user_sample_rate"] = {}
+    config_hashes["company_sample_rate"] = {}
+    config_hashes["regex_config"] = {}
+    config_hashes["ETag"] = nil
+    config_hashes["user_rules"] = {}
+    config_hashes["company_rules"] = {}
+
+    -- Merge User-defined and moesif configs
+    mergeConfigs(config)
+
+    if config.is_config_fetched == nil then
       if debug then
         ngx_log(ngx.DEBUG, "[moesif] Moesif Config is not fetched, calling the function to fetch configuration - ")
       end
 
-      local ok, err = ngx.timer.at(0, get_config, config, debug)
+      local ok, err = ngx.timer.at(0, get_config, config_hashes, debug)
       if not ok then
         if debug then
           ngx_log(ngx_log_ERR, "[moesif] failed to get application config, setting the sample_rate to default ", err)
@@ -425,22 +481,24 @@ function _M.execute(config, message, user_agent_string, debug)
         end
       end
     end
-    if config:get("sample_rate") == nil then
-      config:set("sample_rate", 100)
-    end
-    if config:get("ETag") == nil then
-      config:set("ETag", nil)
-    end
-    config_hashes = config
   end
 
-  log(config, message, debug)
+
+  -- Merge user-defined and moesif configs as user-defined config could be change at any time
+  merge_config = merge_config + 1
+  if merge_config == 100 then
+    mergeConfigs(config)
+    merge_config = 0
+  end
+
+  -- Log event to moesif
+  log(config_hashes, message, debug)
 
   if debug then
-    ngx_log(ngx.DEBUG, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(config:get("queue_scheduled_time")))
+    ngx_log(ngx.DEBUG, "[moesif] last_batch_scheduled_time before scheduleding the job - ", tostring(config_hashes.queue_scheduled_time))
   end
 
-  scheduleJobIfNeeded(config, 5 * config:get("batch_max_time"), user_agent_string, debug)
+  scheduleJobIfNeeded(config_hashes, 5 * config_hashes.batch_max_time, user_agent_string, debug)
 
 end
 
