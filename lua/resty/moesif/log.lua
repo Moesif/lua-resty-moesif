@@ -76,7 +76,7 @@ local function get_config_internal(config, debug)
   if type(config_socket) == "table" and next(config_socket) ~= nil then
     -- Prepare the payload
     local payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\n",
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Batch-Size:" .. tostring(config.batch_size) .. "\r\nX-Moesif-Batch-Max-Time:".. tostring(config.batch_max_time) .."\r\nX-Moesif-Application-Id: %s\r\n",
       "GET", parsed_url.path, parsed_url.host, config.application_id)
 
       -- Send the request
@@ -439,7 +439,7 @@ local function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, de
   end
 end
 
-function mergeConfigs(config)
+local function mergeConfigs(config)
   -- Fetch all the keys from ngx shared dict
   -- Default to 1024 (https://github.com/openresty/lua-nginx-module#ngxshareddictget_keys)
   local configKeys = config:get_keys(1024)

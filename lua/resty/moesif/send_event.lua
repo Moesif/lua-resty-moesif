@@ -78,6 +78,9 @@ end
 
 if isempty(config:get("batch_max_time")) then
   config:set("batch_max_time", 2)
+elseif config:get("batch_max_time") > 30 then 
+  ngx.log(ngx.ERR, "[moesif] Batch max time config value (" .. tostring(config:get("batch_max_time")) .. ") should be less than or equal to 30 seconds");
+  config:set("batch_max_time", 30)
 end
 
 if isempty(config:get("max_callback_time_spent")) then
