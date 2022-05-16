@@ -1,4 +1,5 @@
 local cjson = require "cjson"
+local socket = require "socket"
 local HTTPS = "https"
 local string_format = string.format
 local configuration = nil

@@ -148,7 +148,7 @@ if isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.8"
+local user_agent_string = "lua-resty-moesif-3scale/1.3.9"
 
 function dump(o)
     if type(o) == 'table' then
