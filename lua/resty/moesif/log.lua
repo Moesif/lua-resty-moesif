@@ -35,7 +35,7 @@ local function generate_post_payload(config, parsed_url, message, application_id
     end
 
     payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Pid:" .. tostring(ngx.worker.pid()) .. "\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, #body, body)
     return payload
   else
@@ -43,7 +43,7 @@ local function generate_post_payload(config, parsed_url, message, application_id
       ngx_log(ngx.DEBUG, " [moesif]  ", "successfully compressed body")
     end
     payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Pid:" .. tostring(ngx.worker.pid()) .. "\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, "deflate", #compressed_body, compressed_body)
     return payload
   end  
