@@ -23,7 +23,7 @@ local merge_config = 0
 local _M = {}
 
 -- Generates http payload
-local function generate_post_payload(config, parsed_url, message, application_id, user_agent_string, debug)
+local function generate_post_payload(config, parsed_url, message, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds)
 
   local payload = nil
   local body = cjson.encode(message)
@@ -35,7 +35,7 @@ local function generate_post_payload(config, parsed_url, message, application_id
     end
 
     payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, #body, body)
     return payload
   else
@@ -43,7 +43,7 @@ local function generate_post_payload(config, parsed_url, message, application_id
       ngx_log(ngx.DEBUG, " [moesif]  ", "successfully compressed body")
     end
     payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
+      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
       "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, "deflate", #compressed_body, compressed_body)
     return payload
   end  
@@ -53,14 +53,16 @@ end
 -- Send Payload
 local function send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
   local application_id = config.application_id
-  local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug) .. "\r\n")
+  local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
+  local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
+  local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds) .. "\r\n")
   if not ok then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
+      ngx_log(ngx.DEBUG, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .." for pid - ".. ngx.worker.pid() .. " is: ", err)
     end
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Events sent successfully " , ok)
+      ngx_log(ngx.DEBUG, "[moesif] Events sent successfully for pid - ".. ngx.worker.pid() , ok)
     end
   end
 end
@@ -180,11 +182,11 @@ local function get_config(premature, config, debug)
   local sok, serr = ngx_timer_at(60, get_config, config, debug)
   if not sok then
     if debug then
-      ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the get config : ", serr)
+      ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the get config for pid - ".. ngx.worker.pid() .. " is: ", serr)
     end
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] success when scheduling the get config ")
+      ngx_log(ngx.DEBUG, "[moesif] success when scheduling the get config for pid - ".. ngx.worker.pid())
     end
   end
 
@@ -209,7 +211,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   queue_hashes = {}
   repeat
       if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes.max_callback_time_spent) then
-        ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif")
+        ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif for pid - ".. ngx.worker.pid())
 
         local start_con_time = socket.gettime()*1000
         local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/events/batch", send_events_socket)
@@ -277,7 +279,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
           end
         else 
           if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] Failure to create socket connection for sending event to Moesif ")
+            ngx_log(ngx.DEBUG, "[moesif] Failure to create socket connection for sending event to Moesif for pid - ".. ngx.worker.pid())
           end
         end
         if debug then 
@@ -286,16 +288,16 @@ local function send_events_batch(premature, config, user_agent_string, debug)
       else
         has_events = false
         if #local_queue <= 0 then 
-          ngx_log(ngx.DEBUG, "[moesif] Queue is empty, no events to send ")
+          ngx_log(ngx.DEBUG, "[moesif] Queue is empty, no events to send for pid - ".. ngx.worker.pid())
         else
-          ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now ")
+          ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now for pid - ".. ngx.worker.pid())
         end
       end
   until has_events == false
 
   if not has_events then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] No events to read from the queue")
+      ngx_log(ngx.DEBUG, "[moesif] No events to read from the queue for pid - ".. ngx.worker.pid())
     end
   end
 
@@ -370,7 +372,7 @@ local function log(config, message, debug)
 
   if sampling_rate >= random_percentage then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Event added to the queue")
+      ngx_log(ngx.DEBUG, "[moesif] Event added to the queue for pid - ".. ngx.worker.pid())
     end
     message["weight"] = (sampling_rate == 0 and 1 or math.floor(100 / sampling_rate))
     
@@ -378,7 +380,7 @@ local function log(config, message, debug)
     table.insert(queue_hashes, message)
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage))
+      ngx_log(ngx.DEBUG, "[moesif] Skipped Event", " due to sampling percentage: " .. tostring(sampling_rate) .. " and random number: " .. tostring(random_percentage) .." for pid - ".. ngx.worker.pid())
     end
   end
 end
@@ -387,12 +389,12 @@ end
 local function runJob(premature, config, user_agent_string, debug)
   if not premature then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Calling the send_events_batch function from the scheduled job - ")
+      ngx_log(ngx.DEBUG, "[moesif] Calling the send_events_batch function from the scheduled job for pid - ".. ngx.worker.pid())
     end
     send_events_batch(false, config, user_agent_string, debug)
     
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Calling the scheduleJobIfNeeded function to check if needed to schedule the job - ")
+      ngx_log(ngx.DEBUG, "[moesif] Calling the scheduleJobIfNeeded function to check if needed to schedule the job for pid - ".. ngx.worker.pid())
     end
 
     -- Updating the queue scheduled time
@@ -403,7 +405,7 @@ local function runJob(premature, config, user_agent_string, debug)
       ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
       if debug then
-        ngx_log(ngx.DEBUG, "[moesif] Batch Job is scheduled successfully ")
+        ngx_log(ngx.DEBUG, "[moesif] Batch Job is scheduled successfully for pid - ".. ngx.worker.pid())
       end
     end
 
@@ -418,7 +420,7 @@ local function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, de
   if (os.time() >= (queue_scheduled_time + batch_max_time)) then
     
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Batch Job is not scheduled, scheduling the job  - ")
+      ngx_log(ngx.DEBUG, "[moesif] Batch Job is not scheduled, scheduling the job for pid - ".. ngx.worker.pid())
     end
 
     -- Updating the queue scheduled time
@@ -429,12 +431,12 @@ local function scheduleJobIfNeeded(config, batch_max_time, user_agent_string, de
       ngx_log(ngx_log_ERR, "[moesif] Error when scheduling the job:  ", scheduleJobErr)
     else
       if debug then
-        ngx_log(ngx.DEBUG, "[moesif] Batch Job is scheduled successfully ")
+        ngx_log(ngx.DEBUG, "[moesif] Batch Job is scheduled successfully for pid - ".. ngx.worker.pid())
       end
     end
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Batch Job is already scheduled  - ")
+      ngx_log(ngx.DEBUG, "[moesif] Batch Job is already scheduled for pid - ".. ngx.worker.pid())
     end
   end
 end
