@@ -78,6 +78,9 @@ end
 
 if isempty(config:get("batch_max_time")) then
   config:set("batch_max_time", 2)
+elseif config:get("batch_max_time") > 30 then 
+  ngx.log(ngx.ERR, "[moesif] Resetting Batch max time config value (" .. tostring(config:get("batch_max_time")) .. ") to max allowed (30 seconds)");
+  config:set("batch_max_time", 30)
 end
 
 if isempty(config:get("max_callback_time_spent")) then
@@ -105,7 +108,7 @@ if isempty(config:get("authorization_user_id_field")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.3.8"
+local user_agent_string = "lua-resty-moesif/1.3.9"
 
 -- Log Event
 if isempty(config:get("application_id")) then
