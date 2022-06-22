@@ -157,7 +157,7 @@ function _M.prepare_message(config)
   local transaction_id = nil
   local req_body_transfer_encoding = nil
   local rsp_body_transfer_encoding = nil
-  local reqeust_uri = ngx.var.request_uri
+  local request_uri = ngx.var.request_uri
   local request_headers = ngx.req.get_headers()
   local response_headers = ngx.resp.get_headers()
 
@@ -339,10 +339,10 @@ function _M.prepare_message(config)
     ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", dump(response_headers))
   end
 
-  if reqeust_uri ~= nil then 
+  if request_uri ~= nil then 
     return {
       request = {
-        uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. reqeust_uri,
+        uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. request_uri,
         headers = request_headers,
         body = request_body_entity,
         verb = req_get_method(),
@@ -367,7 +367,7 @@ function _M.prepare_message(config)
   else
     if debug then
       ngx_log(ngx.DEBUG, "[moesif] SKIPPED Sending event as request uri is not valid, the request uri found is below - ");
-      ngx_log(ngx.DEBUG, reqeust_uri)
+      ngx_log(ngx.DEBUG, request_uri)
     end
     return {}
   end
