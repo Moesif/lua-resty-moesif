@@ -148,7 +148,7 @@ if isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.9"
+local user_agent_string = "lua-resty-moesif-3scale/1.3.10"
 
 function dump(o)
     if type(o) == 'table' then
@@ -382,115 +382,117 @@ if isempty(config:get("application_id")) then
         -- Prepare the Message
         local message = moesif_ser.prepare_message(config) 
 
-        if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_token")) then
-        
-            local debug = config:get("debug")
-            if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale accessToken and domainName are provided. Will fetch the application configuration. - ")
-            end
+        if next(message) ~= nil then   
+            if nonEmpty(config:get("3scale_domain")) and nonEmpty(config:get("3scale_access_token")) then
+            
+                local debug = config:get("debug")
+                if debug then 
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale accessToken and domainName are provided. Will fetch the application configuration. - ")
+                end
 
-            local auth_api_key = nil
-            local auth_app_id = nil
-            local auth_app_key_pair = nil
-            local user_id_name = string.lower(config:get("3scale_user_id_name"))
-            local company_id_name = string.lower(config:get("3scale_company_id_name"))
-            local auth_api_key_name = string.lower(config:get("3scale_auth_api_key"))
-            local auth_app_id_name = string.lower(config:get("3scale_auth_app_id"))
-            local auth_app_key_pair_name = string.lower(config:get("3scale_auth_app_key_pair"))
+                local auth_api_key = nil
+                local auth_app_id = nil
+                local auth_app_key_pair = nil
+                local user_id_name = string.lower(config:get("3scale_user_id_name"))
+                local company_id_name = string.lower(config:get("3scale_company_id_name"))
+                local auth_api_key_name = string.lower(config:get("3scale_auth_api_key"))
+                local auth_app_id_name = string.lower(config:get("3scale_auth_app_id"))
+                local auth_app_key_pair_name = string.lower(config:get("3scale_auth_app_key_pair"))
 
-            if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale User Id Name - ", user_id_name)
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale Company Id Name - ", company_id_name)
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth API Key Name - ", auth_api_key_name)
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth App Id Name - ", auth_app_id_name)
-            ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth App Key Pari Name - ", auth_app_key_pair_name)
-            end
-        
-            -- Read Request headers / query params
-            local req_headers = ngx.req.get_headers()
-            if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] Reading the request headers to fetch the credentials like app_id, app_key or user_key - ", dump(req_headers))
-            end
-            local req_query_params = ngx.req.get_uri_args()
-            if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] Reading the request query params to fetch the credentials like app_id, app_key or user_key - ", dump(req_query_params))
-            end
-        
-            -- Fetch credential from request header or query parameter location
-            auth_api_key = fetch_credentials(auth_api_key_name, req_headers, req_query_params)
-            auth_app_id = fetch_credentials(auth_app_id_name, req_headers, req_query_params)
-            auth_app_key_pair = fetch_credentials(auth_app_key_pair_name, req_headers, req_query_params)
+                if debug then 
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale User Id Name - ", user_id_name)
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale Company Id Name - ", company_id_name)
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth API Key Name - ", auth_api_key_name)
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth App Id Name - ", auth_app_id_name)
+                ngx_log(ngx.DEBUG, "[moesif] 3Scale Auth App Key Pari Name - ", auth_app_key_pair_name)
+                end
+            
+                -- Read Request headers / query params
+                local req_headers = ngx.req.get_headers()
+                if debug then 
+                ngx_log(ngx.DEBUG, "[moesif] Reading the request headers to fetch the credentials like app_id, app_key or user_key - ", dump(req_headers))
+                end
+                local req_query_params = ngx.req.get_uri_args()
+                if debug then 
+                ngx_log(ngx.DEBUG, "[moesif] Reading the request query params to fetch the credentials like app_id, app_key or user_key - ", dump(req_query_params))
+                end
+            
+                -- Fetch credential from request header or query parameter location
+                auth_api_key = fetch_credentials(auth_api_key_name, req_headers, req_query_params)
+                auth_app_id = fetch_credentials(auth_app_id_name, req_headers, req_query_params)
+                auth_app_key_pair = fetch_credentials(auth_app_key_pair_name, req_headers, req_query_params)
 
-            if debug then
-            ngx_log(ngx.DEBUG, "[moesif] Auth Api key after reading the request headers and query params - ", auth_api_key)
-            ngx_log(ngx.DEBUG, "[moesif] Auth App Id after reading the request headers and query params - ", auth_app_id)
-            ngx_log(ngx.DEBUG, "[moesif] Auth App key Pair after reading the request headers and query params - ", auth_app_key_pair)
-            end
-        
-            -- Authentication Mode
-            if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
-            message["session_token"] = auth_app_key_pair
-            if nonEmpty(ngx.shared.user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair)) or nonEmpty(ngx.shared.company_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair)) then
-                if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set User ID with AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
+                if debug then
+                ngx_log(ngx.DEBUG, "[moesif] Auth Api key after reading the request headers and query params - ", auth_api_key)
+                ngx_log(ngx.DEBUG, "[moesif] Auth App Id after reading the request headers and query params - ", auth_app_id)
+                ngx_log(ngx.DEBUG, "[moesif] Auth App key Pair after reading the request headers and query params - ", auth_app_key_pair)
                 end
-                message = set_entity_id(ngx.shared.user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair), message, debug, "user_id")
-                if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set Company ID with AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
-                end
-                message = set_entity_id(ngx.shared.company_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair), message, debug, "company_id")
-                if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Log the Event for AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
-                end
-                logEvent(config, message)
-            else
-                if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the function to fetch the 3Scale config with AppId and App_Key Auth method and log the Event - ", auth_app_id .. "-" .. auth_app_key_pair)
-                end
-                authPairConfig, authPairConfigErr = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, true, user_id_name, company_id_name, logEvent, message, debug)
-                if not authPairConfig then
-                    if debug then
-                        ngx_log(ngx_log_ERR, "[moesif] Error while getting the 3Scale Application config for AppId and App_Key Auth method  ", authPairConfigErr)
-                    end
-                end
-            end
-            elseif nonEmpty(auth_api_key) then 
-                message["session_token"] = auth_api_key
-                if nonEmpty(ngx.shared.user_id_cache:get(auth_api_key)) or nonEmpty(ngx.shared.company_id_cache:get(auth_api_key)) then
+            
+                -- Authentication Mode
+                if nonEmpty(auth_app_id) and nonEmpty(auth_app_key_pair) then
+                message["session_token"] = auth_app_key_pair
+                if nonEmpty(ngx.shared.user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair)) or nonEmpty(ngx.shared.company_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair)) then
                     if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set User ID with API Key (user_key) Auth method - ", auth_api_key)
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set User ID with AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
                     end
-                    message = set_entity_id(ngx.shared.user_id_cache:get(auth_api_key), message, debug, "user_id")
+                    message = set_entity_id(ngx.shared.user_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair), message, debug, "user_id")
                     if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set Company ID with API Key (user_key) Auth method - ", auth_api_key)
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set Company ID with AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
                     end
-                    message = set_entity_id(ngx.shared.company_id_cache:get(auth_api_key), message, debug, "company_id")
+                    message = set_entity_id(ngx.shared.company_id_cache:get(auth_app_id .. "-" .. auth_app_key_pair), message, debug, "company_id")
                     if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Log the Event for API Key (user_key) Auth method - ", auth_api_key)
+                        ngx_log(ngx.DEBUG, "[moesif] Log the Event for AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
                     end
                     logEvent(config, message)
                 else
                     if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Calling the function to fetch the 3Scale config with API Key (user_key) Auth method and log the Event - ", auth_api_key)
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the function to fetch the 3Scale config with AppId and App_Key Auth method and log the Event - ", auth_app_id .. "-" .. auth_app_key_pair)
                     end
-                    authKeyConfig, authKeyConfigErr = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, false, user_id_name, company_id_name, logEvent, message, debug)
-                    if not authKeyConfig then
+                    authPairConfig, authPairConfigErr = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, true, user_id_name, company_id_name, logEvent, message, debug)
+                    if not authPairConfig then
                         if debug then
-                            ngx_log(ngx.DEBUG, "[moesif] Error while getting the 3Scale Application config for API Key (user_key) Auth method  ", authKeyConfigErr)
+                            ngx_log(ngx_log_ERR, "[moesif] Error while getting the 3Scale Application config for AppId and App_Key Auth method  ", authPairConfigErr)
                         end
                     end
                 end
+                elseif nonEmpty(auth_api_key) then 
+                    message["session_token"] = auth_api_key
+                    if nonEmpty(ngx.shared.user_id_cache:get(auth_api_key)) or nonEmpty(ngx.shared.company_id_cache:get(auth_api_key)) then
+                        if debug then 
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set User ID with API Key (user_key) Auth method - ", auth_api_key)
+                        end
+                        message = set_entity_id(ngx.shared.user_id_cache:get(auth_api_key), message, debug, "user_id")
+                        if debug then 
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the helper function to Set Company ID with API Key (user_key) Auth method - ", auth_api_key)
+                        end
+                        message = set_entity_id(ngx.shared.company_id_cache:get(auth_api_key), message, debug, "company_id")
+                        if debug then 
+                        ngx_log(ngx.DEBUG, "[moesif] Log the Event for API Key (user_key) Auth method - ", auth_api_key)
+                        end
+                        logEvent(config, message)
+                    else
+                        if debug then 
+                        ngx_log(ngx.DEBUG, "[moesif] Calling the function to fetch the 3Scale config with API Key (user_key) Auth method and log the Event - ", auth_api_key)
+                        end
+                        authKeyConfig, authKeyConfigErr = ngx.timer.at(0, get_3Scale_config, config, auth_api_key, auth_app_id, auth_app_key_pair, false, user_id_name, company_id_name, logEvent, message, debug)
+                        if not authKeyConfig then
+                            if debug then
+                                ngx_log(ngx.DEBUG, "[moesif] Error while getting the 3Scale Application config for API Key (user_key) Auth method  ", authKeyConfigErr)
+                            end
+                        end
+                    end
+                else
+                    if debug then
+                        ngx_log(ngx.DEBUG, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided in headers or query params.")
+                    end
+                    logEvent(config, message)
+                end
             else
-                if debug then
-                    ngx_log(ngx.DEBUG, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided in headers or query params.")
+                if config:get("debug") then 
+                    ngx_log(ngx.DEBUG, "3Scale accessToken or userKey or domainName is not provided")  
                 end
                 logEvent(config, message)
-            end
-        else
-            if config:get("debug") then 
-                ngx_log(ngx.DEBUG, "3Scale accessToken or userKey or domainName is not provided")  
-            end
-            logEvent(config, message)
-        end 
+            end 
+        end
     end
   end
