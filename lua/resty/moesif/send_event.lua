@@ -108,7 +108,7 @@ if isempty(config:get("authorization_user_id_field")) then
 end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.3.9"
+local user_agent_string = "lua-resty-moesif/1.3.10"
 
 -- Log Event
 if isempty(config:get("application_id")) then
@@ -118,7 +118,9 @@ else
   if (logEvent == nil or logEvent == '') or (string.lower(logEvent) == "true") then
     local message = moesif_ser.prepare_message(config)
 
-    -- Execute/Log message
-    log.execute(config, message, user_agent_string, config:get("debug"))
+    if next(message) ~= nil then
+      -- Execute/Log message
+      log.execute(config, message, user_agent_string, config:get("debug"))
+    end
   end
 end

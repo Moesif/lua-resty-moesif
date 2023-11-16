@@ -157,6 +157,7 @@ function _M.prepare_message(config)
   local transaction_id = nil
   local req_body_transfer_encoding = nil
   local rsp_body_transfer_encoding = nil
+  local request_uri = ngx.var.request_uri
   local request_headers = ngx.req.get_headers()
   local response_headers = ngx.resp.get_headers()
 
@@ -338,30 +339,38 @@ function _M.prepare_message(config)
     ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", dump(response_headers))
   end
 
-  return {
-    request = {
-      uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. ngx.var.request_uri,
-      headers = request_headers,
-      body = request_body_entity,
-      verb = req_get_method(),
-      ip_address = client_ip.get_client_ip(request_headers),
-      api_version = api_version,
-      time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000),
-      transfer_encoding = req_body_transfer_encoding,
-    },
-    response = {
-      time = os.date("!%Y-%m-%dT%H:%M:%S.", ngx_now()) .. string.format("%d",(ngx_now()- string.format("%d",ngx_now()))*1000),
-      status = ngx.status,
-      ip_address = Nil,
-      headers = response_headers,
-      body = response_body_entity,
-      transfer_encoding = rsp_body_transfer_encoding,
-    },
-    session_token = session_token_entity,
-    user_id = user_id_entity,
-    company_id = company_id_entity,
-    direction = "Incoming"
-  }
+  if request_uri ~= nil then 
+    return {
+      request = {
+        uri = ngx.var.scheme .. "://" .. ngx.var.host .. ":" .. ngx.var.server_port .. request_uri,
+        headers = request_headers,
+        body = request_body_entity,
+        verb = req_get_method(),
+        ip_address = client_ip.get_client_ip(request_headers),
+        api_version = api_version,
+        time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000),
+        transfer_encoding = req_body_transfer_encoding,
+      },
+      response = {
+        time = os.date("!%Y-%m-%dT%H:%M:%S.", ngx_now()) .. string.format("%d",(ngx_now()- string.format("%d",ngx_now()))*1000),
+        status = ngx.status,
+        ip_address = Nil,
+        headers = response_headers,
+        body = response_body_entity,
+        transfer_encoding = rsp_body_transfer_encoding,
+      },
+      session_token = session_token_entity,
+      user_id = user_id_entity,
+      company_id = company_id_entity,
+      direction = "Incoming"
+    }
+  else
+    if debug then
+      ngx_log(ngx.DEBUG, "[moesif] SKIPPED Sending event as request uri is not valid, the request uri found is below - ");
+      ngx_log(ngx.DEBUG, request_uri)
+    end
+    return {}
+  end
 end
 
 return _M
