@@ -148,9 +148,9 @@ if isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.11"
+local user_agent_string = "lua-resty-moesif-3scale/1.3.12"
 
-function dump(o)
+local function dump(o)
     if type(o) == 'table' then
        local s = '{ '
        for k,v in pairs(o) do
@@ -164,7 +164,7 @@ function dump(o)
   end
 
 -- Get 3Scale Application configuration function
-function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, logEvent, message, debug)
+local function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, logEvent, message, debug)
 
     if premature then
         return
@@ -322,7 +322,7 @@ function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_ap
 end
 
 -- Function to fetch credentials
-function fetch_credentials(auth_key_name, headers, queryparams)
+local function fetch_credentials(auth_key_name, headers, queryparams)
     if debug then
         ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key - ", auth_key_name)
         ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key from headers - ", dump(headers))
@@ -341,7 +341,7 @@ function fetch_credentials(auth_key_name, headers, queryparams)
 end
 
 -- Set entity Id
-function set_entity_id(auth_key_name, message, debug, entity_name)
+local function set_entity_id(auth_key_name, message, debug, entity_name)
     if nonEmpty(auth_key_name) then
         if debug then
             ngx_log(ngx.DEBUG, "[moesif] Using the previously fetched 3Scale entityId from the cache - ", auth_key_name)
@@ -356,7 +356,7 @@ function set_entity_id(auth_key_name, message, debug, entity_name)
 end
 
 -- Function to check if the application config is fetched
-function is_app_config_fetched(ok, err, debug)
+local function is_app_config_fetched(ok, err, debug)
     if not ok then
         if debug then
             ngx_log(ngx_log_ERR, "[moesif] failed to get 3Scale application config ", err)
@@ -369,7 +369,7 @@ function is_app_config_fetched(ok, err, debug)
 end
 
  -- Execute/Log message
-function logEvent(config, message)
+local function logMoesifEvent(config, message)
     log.execute(config, message, user_agent_string, config:get("debug"))
 end
 
@@ -443,7 +443,7 @@ if isempty(config:get("application_id")) then
                     if debug then 
                         ngx_log(ngx.DEBUG, "[moesif] Log the Event for AppId and App_Key Auth method - ", auth_app_id .. "-" .. auth_app_key_pair)
                     end
-                    logEvent(config, message)
+                    logMoesifEvent(config, message)
                 else
                     if debug then 
                         ngx_log(ngx.DEBUG, "[moesif] Calling the function to fetch the 3Scale config with AppId and App_Key Auth method and log the Event - ", auth_app_id .. "-" .. auth_app_key_pair)
@@ -485,13 +485,13 @@ if isempty(config:get("application_id")) then
                     if debug then
                         ngx_log(ngx.DEBUG, "No 3Scale userId found as authentication key - user_key or app_id/app_key is not provided in headers or query params.")
                     end
-                    logEvent(config, message)
+                    logMoesifEvent(config, message)
                 end
             else
                 if config:get("debug") then 
                     ngx_log(ngx.DEBUG, "3Scale accessToken or userKey or domainName is not provided")  
                 end
-                logEvent(config, message)
+                logMoesifEvent(config, message)
             end 
         end
     end
