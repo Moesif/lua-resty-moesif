@@ -38,7 +38,6 @@ build = {
     ["lua.resty.moesif.helpers"] = "lua/resty/moesif/helpers.lua",
     ["lua.resty.moesif.connection"] = "lua/resty/moesif/connection.lua",
     ["lua.resty.moesif.lib_deflate"] = "lua/resty/moesif/lib_deflate.lua",
-    ["lua.resty.moesif.client_ip"] = "lua/resty/moesif/client_ip.lua",
     ["lua.resty.moesif.zzlib"] = "lua/resty/moesif/zzlib.lua",
     ["lua.resty.moesif.base64"] = "lua/resty/moesif/base64.lua",
     ["lua.resty.moesif.read_req_body"] = "lua/resty/moesif/read_req_body.lua",

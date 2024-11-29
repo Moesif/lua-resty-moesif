@@ -4,7 +4,7 @@ local req_start_time = ngx.req.start_time
 local cjson = require "cjson"
 local cjson_safe = require "cjson.safe"
 local random = math.random
-local client_ip = require "client_ip"
+local moesif_client = require "moesif.common.moesif_client"
 local zzlib = require "zzlib"
 local base64 = require "base64"
 local helpers = require "helpers"
@@ -346,7 +346,7 @@ function _M.prepare_message(config)
         headers = request_headers,
         body = request_body_entity,
         verb = req_get_method(),
-        ip_address = client_ip.get_client_ip(request_headers),
+        ip_address = moesif_client.get_client_ip(request_headers), -- client_ip.get_client_ip(request_headers),
         api_version = api_version,
         time = os.date("!%Y-%m-%dT%H:%M:%S.", req_start_time()) .. string.format("%d",(req_start_time()- string.format("%d", req_start_time()))*1000),
         transfer_encoding = req_body_transfer_encoding,
@@ -354,7 +354,7 @@ function _M.prepare_message(config)
       response = {
         time = os.date("!%Y-%m-%dT%H:%M:%S.", ngx_now()) .. string.format("%d",(ngx_now()- string.format("%d",ngx_now()))*1000),
         status = ngx.status,
-        ip_address = Nil,
+        ip_address = nil,
         headers = response_headers,
         body = response_body_entity,
         transfer_encoding = rsp_body_transfer_encoding,
