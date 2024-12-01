@@ -8,9 +8,7 @@ local queue_hashes = {}
 local queue_scheduled_time
 local moesif_events = "moesif_events_"
 local has_events = false
--- local compress = require "lib_deflate"
 local helpers = require "helpers"
-local connect = require "connection"
 local sample_rate = 100
 local ngx_log = ngx.log
 local ngx_log_ERR = ngx.ERR
@@ -25,7 +23,7 @@ local moesif_http_conn = require "moesifapi.lua.http_connection"
 local moesif_client = require "moesifapi.lua.moesif_client"
 
 -- Send Payload
-local function send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
+local function send_payload(batch_events, config, user_agent_string, debug)
   local application_id = config.application_id
   local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
   local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
@@ -42,11 +40,9 @@ local function send_payload(sock, parsed_url, batch_events, config, user_agent_s
   if config.debug then
     ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
   end
-
-  -- local ok, err = sock:send(moesif_prepare_payload.generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds) .. "\r\n")
   if not res then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .." for pid - ".. ngx.worker.pid() .. " with status: ", tostring(res.status))
+      ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION failed to send data for pid - ".. ngx.worker.pid() .. " with status: ", tostring(res.status))
     end
   else
     if debug then
@@ -93,10 +89,6 @@ local function send_events_batch(premature, config, user_agent_string, debug)
     return
   end
 
-  local send_events_socket = ngx.socket.tcp()
-  local global_socket_timeout = 1000
-  send_events_socket:settimeout(global_socket_timeout)
-
   local batch_events = {}
 
   -- Getting the configuration
@@ -105,75 +97,40 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   repeat
       if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes.max_callback_time_spent) then
         ngx_log(ngx.DEBUG, "[moesif] CUSTOM Sending events to Moesif for pid - ".. ngx.worker.pid())
-
-        local start_con_time = socket.gettime()*1000
-        local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/events/batch", send_events_socket)
-        local end_con_time = socket.gettime()*1000
-        if debug then
-          ngx_log(ngx.DEBUG, "[moesif] get connection took time - ".. tostring(end_con_time - start_con_time).." for pid - ".. ngx.worker.pid())
-        end
-
-        if type(send_events_socket) == "table" and next(send_events_socket) ~= nil then
           
-          local counter = 0
-          repeat
-            local event = table.remove(local_queue)
-            counter = counter + 1
-            table.insert(batch_events, event)
-            if (#batch_events == config.batch_size) then
-              local start_pay_time = socket.gettime()*1000
-              if pcall(send_payload, send_events_socket, parsed_url, batch_events, config, user_agent_string, debug) then 
+        local counter = 0
+        repeat
+          local event = table.remove(local_queue)
+          counter = counter + 1
+          table.insert(batch_events, event)
+          if (#batch_events == config.batch_size) then
+            local start_pay_time = socket.gettime()*1000
+            if pcall(send_payload, batch_events, config, user_agent_string, debug) then
+              sent_event = sent_event + #batch_events
+              end
+            local end_pay_time = socket.gettime()*1000
+              if debug then
+              ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
+              end
+              batch_events = {}
+          else if(#local_queue ==0 and #batch_events > 0) then
+              local start_pay1_time = socket.gettime()*1000
+              if pcall(send_payload, batch_events, config, user_agent_string, debug) then
                 sent_event = sent_event + #batch_events
-               end
-              local end_pay_time = socket.gettime()*1000
-               if debug then
-                ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
-               end
-               batch_events = {}
-            else if(#local_queue ==0 and #batch_events > 0) then
-                local start_pay1_time = socket.gettime()*1000
-                if pcall(send_payload, send_events_socket, parsed_url, batch_events, config, user_agent_string, debug) then 
-                  sent_event = sent_event + #batch_events
-                end
-                local end_pay1_time = socket.gettime()*1000
-                if debug then
-                  ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay1_time - start_pay1_time).." for pid - ".. ngx.worker.pid())
-                end
-                batch_events = {}
               end
-            end
-          until counter == config.batch_size or next(local_queue) == nil
-  
-          if #local_queue > 0 then
-            has_events = true
-          else
-            has_events = false
-          end
-  
-          local ok, err = send_events_socket:setkeepalive()
-          if not ok then
-            if debug then
-              ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
-            end
-            local close_ok, close_err = send_events_socket:close()
-            if not close_ok then
+              local end_pay1_time = socket.gettime()*1000
               if debug then
-                ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
+                ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay1_time - start_pay1_time).." for pid - ".. ngx.worker.pid())
               end
-            else
-              if debug then
-                ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
-              end
-            end
-           else
-            if debug then
-              ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok)
+              batch_events = {}
             end
           end
-        else 
-          if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] Failure to create socket connection for sending event to Moesif for pid - ".. ngx.worker.pid())
-          end
+        until counter == config.batch_size or next(local_queue) == nil
+
+        if #local_queue > 0 then
+          has_events = true
+        else
+          has_events = false
         end
         if debug then 
           ngx_log(ngx.DEBUG, "[moesif] Received Event - "..tostring(rec_event).." and Sent Event - "..tostring(sent_event).." for pid - ".. ngx.worker.pid())

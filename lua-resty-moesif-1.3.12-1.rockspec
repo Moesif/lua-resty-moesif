@@ -37,8 +37,6 @@ build = {
     ["lua.resty.moesif.moesif_ser"] = "lua/resty/moesif/moesif_ser.lua",
     ["lua.resty.moesif.helpers"] = "lua/resty/moesif/helpers.lua",
     ["lua.resty.moesif.connection"] = "lua/resty/moesif/connection.lua",
-    ["lua.resty.moesif.lib_deflate"] = "lua/resty/moesif/lib_deflate.lua",
-    ["lua.resty.moesif.zzlib"] = "lua/resty/moesif/zzlib.lua",
     ["lua.resty.moesif.read_req_body"] = "lua/resty/moesif/read_req_body.lua",
     ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua"
   }
