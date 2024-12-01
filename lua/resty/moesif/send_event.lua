@@ -3,7 +3,7 @@ local url = require "socket.url"
 local HTTPS = "https"
 local moesif_ser = require "moesif_ser"
 local log = require "log"
-local moesif_client = require "moesif.common.moesif_client"
+local moesif_client = require "moesifapi.lua.moesif_client"
 
 local function isempty(s)
   return s == nil or s == ''

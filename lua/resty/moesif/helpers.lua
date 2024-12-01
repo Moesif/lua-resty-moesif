@@ -2,7 +2,7 @@ local url = require "socket.url"
 local HTTPS = "https"
 local _M = {}
 local cjson = require "cjson"
-local base64 = require "base64"
+local base64 = require "moesifapi.lua.base64"
 
 -- Read data from the socket
 -- @param `socket`  socket

@@ -1,6 +1,6 @@
 local _M = {}
 
-local moesif_client = require "moesif.common.moesif_client"
+local moesif_client = require "moesifapi.lua.moesif_client"
 local socket = require "socket"
  
 local function dump(o)
