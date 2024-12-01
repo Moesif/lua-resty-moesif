@@ -51,6 +51,18 @@ local function send_payload(batch_events, config, user_agent_string, debug)
   end
 end
 
+local function send_batch(batch_events, config, user_agent_string, debug)
+  local start_pay_time = socket.gettime()*1000
+  if pcall(send_payload, batch_events, config, user_agent_string, debug) then
+    sent_event = sent_event + #batch_events
+  end
+  local end_pay_time = socket.gettime()*1000
+  if debug then
+    ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
+  end
+  batch_events = {}
+end
+
 -- Get App Config function
 local function get_config(premature, config, debug)
   if premature then
@@ -103,27 +115,8 @@ local function send_events_batch(premature, config, user_agent_string, debug)
           local event = table.remove(local_queue)
           counter = counter + 1
           table.insert(batch_events, event)
-          if (#batch_events == config.batch_size) then
-            local start_pay_time = socket.gettime()*1000
-            if pcall(send_payload, batch_events, config, user_agent_string, debug) then
-              sent_event = sent_event + #batch_events
-              end
-            local end_pay_time = socket.gettime()*1000
-              if debug then
-              ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
-              end
-              batch_events = {}
-          else if(#local_queue ==0 and #batch_events > 0) then
-              local start_pay1_time = socket.gettime()*1000
-              if pcall(send_payload, batch_events, config, user_agent_string, debug) then
-                sent_event = sent_event + #batch_events
-              end
-              local end_pay1_time = socket.gettime()*1000
-              if debug then
-                ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay1_time - start_pay1_time).." for pid - ".. ngx.worker.pid())
-              end
-              batch_events = {}
-            end
+          if ((#batch_events == config.batch_size) or (#local_queue ==0 and #batch_events > 0)) then
+            send_batch(batch_events, config, user_agent_string, debug)
           end
         until counter == config.batch_size or next(local_queue) == nil
 
