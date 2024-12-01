@@ -21,7 +21,6 @@ local rec_event = 0
 local sent_event = 0
 local merge_config = 0
 local _M = {}
-local moesif_prepare_payload = require "moesifapi.lua.prepare_payload"
 local moesif_http_conn = require "moesifapi.lua.http_connection"
 local moesif_client = require "moesifapi.lua.moesif_client"
 
@@ -31,14 +30,14 @@ local function send_payload(sock, parsed_url, batch_events, config, user_agent_s
   local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
   local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
 
-  local payload = moesif_prepare_payload.generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds)
+  local payload = moesif_client.generate_post_payload(batch_events, debug)
 
   -- Create http client
   local httpc = moesif_client.get_http_connection(config)
 
   local start_req_time = socket.gettime()*1000
   -- Perform the POST request
-  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, false) -- isCompressed
+  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, true) -- isCompressed
   local end_req_time = socket.gettime()*1000
   if config.debug then
     ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
