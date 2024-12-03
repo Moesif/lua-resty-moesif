@@ -43,6 +43,7 @@ function _M.prepare_message(config)
   local session_token_entity
   local request_body_entity
   local response_body_entity
+  local blocked_by_entity
   local user_id_entity
   local company_id_entity
   local api_version
@@ -231,6 +232,12 @@ function _M.prepare_message(config)
     ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", dump(response_headers))
   end
 
+  -- Add blocked_by field to the event to determine the rule by which the event was blocked
+  ngx_log(ngx.DEBUG, "[moesif] ngx ctx ", dump(ngx.ctx))
+  if ngx.ctx.moesif ~= nil and ngx.ctx.moesif.blocked_by ~= nil then 
+    blocked_by_entity = ngx.ctx.moesif.blocked_by
+  end
+
   if request_uri ~= nil then 
     return {
       request = {
@@ -254,7 +261,8 @@ function _M.prepare_message(config)
       session_token = session_token_entity,
       user_id = user_id_entity,
       company_id = company_id_entity,
-      direction = "Incoming"
+      direction = "Incoming",
+      blocked_by = blocked_by_entity
     }
   else
     if debug then
