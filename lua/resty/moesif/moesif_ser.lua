@@ -40,6 +40,7 @@ end
 
 -- Prepare message
 function _M.prepare_message(config)
+  local moesif_ctx = ngx.ctx.moesif or {}
   local session_token_entity
   local request_body_entity
   local response_body_entity
@@ -96,11 +97,16 @@ function _M.prepare_message(config)
 
   -- Request body
   local request_content_length = ngx.req.get_headers()["content-length"]
-  if ngx.var.moesif_req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
+
+  ngx.log(ngx.DEBUG, "[moesif] req ngx.ctx: ", dump(ngx.ctx))
+  ngx.log(ngx.DEBUG, "[moesif] req moesif_ctx: ", dump(moesif_ctx))
+  ngx.log(ngx.DEBUG, "[moesif] req ngx.var: ", dump(ngx.var))
+
+  if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
     request_body_entity = nil
   else
     local request_body_masks = ser_helper.mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
-    request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, ngx.var.moesif_req_body, request_body_masks, config)
+    request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, moesif_ctx.req_body, request_body_masks, config)
   end
 
   -- Response body
