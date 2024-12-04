@@ -199,7 +199,7 @@ local function log(config, message, debug)
   -- calculate regex sample rate
   if type(config.regex_config) == "table" and next(config.regex_config) ~= nil then
     local config_mapping = helpers.prepare_config_mapping(message)
-    local ok, sample_rate, block_rule = pcall(helpers.fetch_sample_rate_block_request_on_regex_match, config.regex_config, config_mapping)
+    local ok, sample_rate, block_rule = pcall(moesif_client.fetch_sample_rate_block_request_on_regex_match, config.regex_config, config_mapping)
     if ok then
       regex_sampling_rate = sample_rate
     end
