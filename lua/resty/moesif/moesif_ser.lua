@@ -111,11 +111,11 @@ function _M.prepare_message(config)
 
   -- Response body
   local response_content_length = ngx.resp.get_headers()["content-length"]
-  if ngx.var.moesif_res_body == nil or config:get("disable_capture_response_body") or (response_content_length ~= nil and tonumber(response_content_length) > config:get("max_body_size_limit")) then
+  if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") or (response_content_length ~= nil and tonumber(response_content_length) > config:get("max_body_size_limit")) then
     response_body_entity = nil
   else
     local response_body_masks = ser_helper.mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
-    response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, ngx.var.moesif_res_body, response_body_masks, config)
+    response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, moesif_ctx.res_body, response_body_masks, config)
   end
 
   -- Headers

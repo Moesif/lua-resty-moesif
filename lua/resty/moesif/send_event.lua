@@ -11,9 +11,6 @@ local function isempty(s)
 end
 
 -- Global config
--- local config = ngx.shared.moesif_conf;
--- config = moesif_client.set_default_config_value(config)
-
 local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
 
 -- User Agent String
