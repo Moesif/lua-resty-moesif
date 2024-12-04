@@ -287,7 +287,7 @@ end
 -- TODO: Figure out - request_query_masks = {default = {}, type = "array", elements = typedefs.header_name}
 if isempty(config:get("request_query_masks")) then
   ngx.log(ngx.DEBUG, "config set to default in helpers - ")  
-  config:set("request_query_masks", "{}")
+  config:set("request_query_masks", "[]") -- default value may be [] or {}
 else
   ngx.log(ngx.DEBUG, "config not set to default in helpers - ")  
 end
