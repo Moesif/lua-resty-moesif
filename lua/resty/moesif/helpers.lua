@@ -282,6 +282,16 @@ if isempty(config:get("enable_compression")) then
   config:set("enable_compression", false)
 end
 
+
+if isempty(config:get("request_max_body_size_limit")) then
+  config:set("request_max_body_size_limit", 100000)
+end
+
+if isempty(config:get("response_max_body_size_limit")) then
+  config:set("response_max_body_size_limit", 100000)
+end
+
+
 -- TODO: In NGINX's Lua module, shared dictionaries (ngx.shared.my_conf) are designed to hold string-based values or other simple types like numbers, booleans, etc. 
 -- They are not meant to store Lua tables directly, including empty tables, in the same way you would work with Lua's native data structures.
 -- TODO: Figure out - request_query_masks = {default = {}, type = "array", elements = typedefs.header_name}
