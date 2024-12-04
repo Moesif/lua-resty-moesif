@@ -165,7 +165,7 @@ function _M.prepare_message(config)
     request_body_entity = nil
   else
     local request_body_masks = ser_helper.mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
-    request_body_entity, req_body_transfer_encoding = ser_helper.parse_body(request_headers, ngx.var.moesif_req_body, request_body_masks, config)
+    request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, ngx.var.moesif_req_body, request_body_masks, config)
   end
 
   -- Response body
@@ -174,7 +174,7 @@ function _M.prepare_message(config)
     response_body_entity = nil
   else
     local response_body_masks = ser_helper.mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
-    response_body_entity, rsp_body_transfer_encoding = ser_helper.parse_body(response_headers, ngx.var.moesif_res_body, response_body_masks, config)
+    response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, ngx.var.moesif_res_body, response_body_masks, config)
   end
 
   -- Headers
