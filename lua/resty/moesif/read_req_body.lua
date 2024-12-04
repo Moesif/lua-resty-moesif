@@ -2,6 +2,7 @@ local _M = {}
 
 local moesif_client = require "moesifapi.lua.moesif_client"
 local socket = require "socket"
+local helpers = require "helpers"
  
 local function dump(o)
     if type(o) == 'table' then
@@ -18,7 +19,7 @@ local function dump(o)
 
 -- local config = ngx.shared.moesif_conf
 -- config = moesif_client.set_default_config_value(config)
-local config = moesif_client.set_default_config_value(ngx.shared.moesif_conf)
+local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
 
 local req_get_method = ngx.req.get_method()
 local req_get_headers = ngx.req.get_headers()

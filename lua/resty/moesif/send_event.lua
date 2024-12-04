@@ -4,15 +4,17 @@ local HTTPS = "https"
 local moesif_ser = require "moesif_ser"
 local log = require "log"
 local moesif_client = require "moesifapi.lua.moesif_client"
+local helpers = require "helpers"
 
 local function isempty(s)
   return s == nil or s == ''
 end
 
 -- Global config
-local config = ngx.shared.moesif_conf;
+-- local config = ngx.shared.moesif_conf;
+-- config = moesif_client.set_default_config_value(config)
 
-config = moesif_client.set_default_config_value(config)
+local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
 
 -- User Agent String
 local user_agent_string = "lua-resty-moesif/1.3.12"
