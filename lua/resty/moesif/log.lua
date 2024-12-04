@@ -35,7 +35,7 @@ local function send_payload(batch_events, config, user_agent_string, debug)
 
   local start_req_time = socket.gettime()*1000
   -- Perform the POST request
-  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, isCompressed)
+  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, isCompressed, user_agent_string)
   local end_req_time = socket.gettime()*1000
   if config.debug then
     ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
