@@ -28,14 +28,14 @@ local function send_payload(batch_events, config, user_agent_string, debug)
   local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
   local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
 
-  local payload = moesif_client.generate_post_payload(batch_events, debug)
+  local payload, isCompressed = moesif_client.generate_post_payload(config, batch_events, debug)
 
   -- Create http client
   local httpc = moesif_client.get_http_connection(config)
 
   local start_req_time = socket.gettime()*1000
   -- Perform the POST request
-  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, true) -- isCompressed
+  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, isCompressed)
   local end_req_time = socket.gettime()*1000
   if config.debug then
     ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
