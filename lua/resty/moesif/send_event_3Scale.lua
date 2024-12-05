@@ -1,163 +1,146 @@
 local moesif_ser = require "moesif_ser"
 local log = require "log"
-local string_format = string.format
 local luaxml = require('LuaXML')
 local ngx_log = ngx.log
 local ngx_log_ERR = ngx.ERR
 local cjson = require "cjson"
+local helpers = require "helpers"
 local moesif_client = require "moesifapi.lua.moesif_client"
 
 local function nonEmpty(s)
     return s ~= nil and s ~= ''
 end
 
-local function isempty(s)
-    return s == nil or s == ''
-end
-
 -- Global config
 local config = ngx.shared.moesif_conf;
 
 -- Set Default values.
-if isempty(config:get("disable_transaction_id")) then
+if helpers.isempty(config:get("disable_transaction_id")) then
   config:set("disable_transaction_id", false)
 end
 
-if isempty(config:get("api_endpoint")) then
+if helpers.isempty(config:get("api_endpoint")) then
   config:set("api_endpoint", "https://api.moesif.net")
 end
 
-if isempty(config:get("timeout")) then
+if helpers.isempty(config:get("timeout")) then
     config:set("timeout", 1000)
   end
   
-  if isempty(config:get("connect_timeout")) then
+  if helpers.isempty(config:get("connect_timeout")) then
     config:set("connect_timeout", 1000)
   end
   
-  if isempty(config:get("send_timeout")) then
+  if helpers.isempty(config:get("send_timeout")) then
     config:set("send_timeout", 2000)
   end
   
-  if isempty(config:get("keepalive")) then
+  if helpers.isempty(config:get("keepalive")) then
     config:set("keepalive", 5000)
   end
 
-if isempty(config:get("disable_capture_request_body")) then
+if helpers.isempty(config:get("disable_capture_request_body")) then
   config:set("disable_capture_request_body", false)
 end
 
-if isempty(config:get("disable_capture_response_body")) then
+if helpers.isempty(config:get("disable_capture_response_body")) then
   config:set("disable_capture_response_body", false)
 end
 
-if isempty(config:get("request_masks")) then
+if helpers.isempty(config:get("request_masks")) then
   config:set("request_masks", "")
 end
 
-if isempty(config:get("request_body_masks")) then
+if helpers.isempty(config:get("request_body_masks")) then
     config:set("request_body_masks", "")
 end
 
-if isempty(config:get("request_header_masks")) then
+if helpers.isempty(config:get("request_header_masks")) then
     config:set("request_header_masks", "")
 end
 
-if isempty(config:get("response_masks")) then
+if helpers.isempty(config:get("response_masks")) then
   config:set("response_masks", "")
 end
 
-if isempty(config:get("response_body_masks")) then
+if helpers.isempty(config:get("response_body_masks")) then
     config:set("response_body_masks", "")
 end
 
-if isempty(config:get("response_header_masks")) then
+if helpers.isempty(config:get("response_header_masks")) then
     config:set("response_header_masks", "")
 end
 
-if isempty(config:get("batch_size")) then
+if helpers.isempty(config:get("batch_size")) then
   config:set("batch_size", 200)
 end
 
-if isempty(config:get("debug")) then
+if helpers.isempty(config:get("debug")) then
   config:set("debug", false)
 end
 
-if isempty(config:get("3scale_domain")) then
+if helpers.isempty(config:get("3scale_domain")) then
     config:set("3scale_domain", "")
 end
 
-if isempty(config:get("3scale_access_token")) then
+if helpers.isempty(config:get("3scale_access_token")) then
   config:set("3scale_access_token", "")
 end
 
-if isempty(config:get("3scale_user_id_name")) then
+if helpers.isempty(config:get("3scale_user_id_name")) then
   config:set("3scale_user_id_name", "id")
 end
 
-if isempty(config:get("3scale_company_id_name")) then
+if helpers.isempty(config:get("3scale_company_id_name")) then
     config:set("3scale_company_id_name", "user_account_id")
 end
 
-if isempty(config:get("3scale_auth_api_key")) then
+if helpers.isempty(config:get("3scale_auth_api_key")) then
   config:set("3scale_auth_api_key", "user_key")
 end
 
-if isempty(config:get("3scale_auth_app_id")) then
+if helpers.isempty(config:get("3scale_auth_app_id")) then
   config:set("3scale_auth_app_id", "app_id")
 end
 
-if isempty(config:get("3scale_auth_app_key_pair")) then
+if helpers.isempty(config:get("3scale_auth_app_key_pair")) then
   config:set("3scale_auth_app_key_pair", "app_key")
 end
 
-if isempty(config:get("3Scale_cache_ttl")) then
+if helpers.isempty(config:get("3Scale_cache_ttl")) then
     config:set("3Scale_cache_ttl", 3600)
 end
 
-if isempty(config:get("batch_max_time")) then
+if helpers.isempty(config:get("batch_max_time")) then
     config:set("batch_max_time", 2)
 end
 
-if isempty(config:get("max_callback_time_spent")) then
+if helpers.isempty(config:get("max_callback_time_spent")) then
     config:set("max_callback_time_spent", 2000)
   end
 
-if isempty(config:get("disable_gzip_payload_decompression")) then
+if helpers.isempty(config:get("disable_gzip_payload_decompression")) then
     config:set("disable_gzip_payload_decompression", false)
 end
 
-if isempty(config:get("max_body_size_limit")) then
+if helpers.isempty(config:get("max_body_size_limit")) then
     config:set("max_body_size_limit", 100000)
   end
 
-if isempty(config:get("queue_scheduled_time")) then
+if helpers.isempty(config:get("queue_scheduled_time")) then
     config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
 end
 
-if isempty(config:get("authorization_header_name")) then
+if helpers.isempty(config:get("authorization_header_name")) then
     config:set("authorization_header_name", "authorization")
   end
   
-  if isempty(config:get("authorization_user_id_field")) then
+  if helpers.isempty(config:get("authorization_user_id_field")) then
     config:set("authorization_user_id_field", "sub")
   end
 
 -- User Agent String
 local user_agent_string = "lua-resty-moesif-3scale/1.3.12"
-
-local function dump(o)
-    if type(o) == 'table' then
-       local s = '{ '
-       for k,v in pairs(o) do
-          if type(k) ~= 'number' then k = '"'..k..'"' end
-          s = s .. '['..k..'] = ' .. dump(v) .. ','
-       end
-       return s .. '} '
-    else
-       return tostring(o)
-    end
-  end
 
 -- Get 3Scale Application configuration function
 local function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, logEvent, message, debug)
@@ -219,7 +202,7 @@ local function get_3Scale_config(premature, config, auth_api_key, auth_app_id, a
     -- Read the response
     if config_response_error == nil then 
         if debug then
-            ngx_log(ngx.DEBUG, "[moesif] Response after calling the 3Scale admin api to fetch application context - ", dump(config_response))
+            ngx_log(ngx.DEBUG, "[moesif] Response after calling the 3Scale admin api to fetch application context - ", helpers.dump(config_response))
         end
         
         local raw_config_response = config_response.body
@@ -306,8 +289,8 @@ end
 local function fetch_credentials(auth_key_name, headers, queryparams)
     if debug then
         ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key - ", auth_key_name)
-        ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key from headers - ", dump(headers))
-        ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key from queryparams - ", dump(queryparams))
+        ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key from headers - ", helpers.dump(headers))
+        ngx_log(ngx.DEBUG, "[moesif] Inside the fetch_credentials helper function to fetch key from queryparams - ", helpers.dump(queryparams))
     end
 
     local fetched_key = nil
@@ -342,7 +325,7 @@ local function logMoesifEvent(config, message)
 end
 
 -- Log Event
-if isempty(config:get("application_id")) then
+if helpers.isempty(config:get("application_id")) then
     ngx_log(ngx_log_ERR, "[moesif] Please provide the Moesif Application Id");
   else
     local logEvent = ngx.var.moesif_log_event
@@ -378,11 +361,11 @@ if isempty(config:get("application_id")) then
                 -- Read Request headers / query params
                 local req_headers = ngx.req.get_headers()
                 if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Reading the request headers to fetch the credentials like app_id, app_key or user_key - ", dump(req_headers))
+                    ngx_log(ngx.DEBUG, "[moesif] Reading the request headers to fetch the credentials like app_id, app_key or user_key - ", helpers.dump(req_headers))
                 end
                 local req_query_params = ngx.req.get_uri_args()
                 if debug then 
-                    ngx_log(ngx.DEBUG, "[moesif] Reading the request query params to fetch the credentials like app_id, app_key or user_key - ", dump(req_query_params))
+                    ngx_log(ngx.DEBUG, "[moesif] Reading the request query params to fetch the credentials like app_id, app_key or user_key - ", helpers.dump(req_query_params))
                 end
             
                 -- Fetch credential from request header or query parameter location

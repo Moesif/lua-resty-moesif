@@ -1,14 +1,6 @@
-local socket = require("socket")
-local url = require "socket.url"
-local HTTPS = "https"
 local moesif_ser = require "moesif_ser"
 local log = require "log"
-local moesif_client = require "moesifapi.lua.moesif_client"
 local helpers = require "helpers"
-
-local function isempty(s)
-  return s == nil or s == ''
-end
 
 -- Global config
 local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
@@ -17,7 +9,7 @@ local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
 local user_agent_string = "lua-resty-moesif/1.3.12"
 
 -- Log Event
-if isempty(config:get("application_id")) then
+if helpers.isempty(config:get("application_id")) then
   ngx.log(ngx.ERR, "[moesif] Please provide the Moesif Application Id");
 else
   local logEvent = ngx.var.moesif_log_event

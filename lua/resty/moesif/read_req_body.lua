@@ -4,11 +4,6 @@ local moesif_client = require "moesifapi.lua.moesif_client"
 local socket = require "socket"
 local helpers = require "helpers"
 
-
-local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
-local req_get_method = ngx.req.get_method()
-local headers = ngx.req.get_headers()
-
 function _M.read_request_body()
     local start_access_phase_time = socket.gettime()*1000
     
@@ -16,6 +11,10 @@ function _M.read_request_body()
     local req_post_args = {}
     local err = nil
     local mimetype = nil
+
+    local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
+    local method = ngx.req.get_method()
+    local headers = ngx.req.get_headers()
     local content_length = headers["content-length"]
 
     local success, err = pcall(function()
@@ -37,7 +36,7 @@ function _M.read_request_body()
         req_post_args = req_post_args
       }
 
-    moesif_client.govern_request(config, start_access_phase_time, req_get_method, headers)
+    moesif_client.govern_request(config, start_access_phase_time, method, headers)
 end
 
 _M.read_request_body()

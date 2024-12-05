@@ -1,14 +1,16 @@
-local cjson = require "cjson"
+local _M = {}
+
 local socket = require "socket"
-local HTTPS = "https"
-local string_format = string.format
+local helpers = require "helpers"
+local moesif_http_conn = require "moesifapi.lua.http_connection"
+local moesif_client = require "moesifapi.lua.moesif_client"
+
 local configuration = nil
 local config_hashes = {}
 local queue_hashes = {}
 local queue_scheduled_time
 local moesif_events = "moesif_events_"
 local has_events = false
-local helpers = require "helpers"
 local sample_rate = 100
 local ngx_log = ngx.log
 local ngx_log_ERR = ngx.ERR
@@ -18,9 +20,7 @@ local health_check = 0
 local rec_event = 0
 local sent_event = 0
 local merge_config = 0
-local _M = {}
-local moesif_http_conn = require "moesifapi.lua.http_connection"
-local moesif_client = require "moesifapi.lua.moesif_client"
+
 
 -- Send Payload
 local function send_payload(batch_events, config, user_agent_string, debug)
@@ -28,25 +28,27 @@ local function send_payload(batch_events, config, user_agent_string, debug)
   local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
   local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
 
+  -- Prepare payload
   local payload, isCompressed = moesif_client.generate_post_payload(config, batch_events, debug)
 
   -- Create http client
   local httpc = moesif_client.get_http_connection(config)
 
-  local start_req_time = socket.gettime()*1000
   -- Perform the POST request
+  local start_req_time = socket.gettime()*1000
   local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, isCompressed, user_agent_string)
   local end_req_time = socket.gettime()*1000
+  
   if config.debug then
-    ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
+    ngx_log(ngx.DEBUG, "[moesif] Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
   end
   if not res then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION failed to send data for pid - ".. ngx.worker.pid() .. " with status: ", tostring(res.status))
+      ngx_log(ngx.DEBUG, "[moesif] failed to send data for pid - ".. ngx.worker.pid() .. " with status: ", tostring(res.status))
     end
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] USING COMMON FUNCTION Events sent successfully for pid - ".. ngx.worker.pid() , ok)
+      ngx_log(ngx.DEBUG, "[moesif] Events sent successfully for pid - ".. ngx.worker.pid())
     end
   end
 end
@@ -108,7 +110,9 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   queue_hashes = {}
   repeat
       if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes.max_callback_time_spent) then
-        ngx_log(ngx.DEBUG, "[moesif] CUSTOM Sending events to Moesif for pid - ".. ngx.worker.pid())
+        if debug then
+          ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif for pid - ".. ngx.worker.pid())
+        end
           
         local counter = 0
         repeat
@@ -131,9 +135,13 @@ local function send_events_batch(premature, config, user_agent_string, debug)
       else
         has_events = false
         if #local_queue <= 0 then 
-          ngx_log(ngx.DEBUG, "[moesif]  CUSTOM  Queue is empty, no events to send for pid - ".. ngx.worker.pid())
+          if debug then
+            ngx_log(ngx.DEBUG, "[moesif] Queue is empty, no events to send for pid - ".. ngx.worker.pid())
+          end
         else
-          ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now for pid - ".. ngx.worker.pid())
+          if debug then
+            ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now for pid - ".. ngx.worker.pid())
+          end
         end
       end
   until has_events == false
@@ -168,7 +176,7 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   if queue_hashes ~= nil then 
     length = #queue_hashes
   end
-  ngx_log(ngx.DEBUG, "[moesif] CUSTOM send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event - prv_events).." for pid - ".. ngx.worker.pid().. " with queue size - ".. tostring(length))
+  ngx_log(ngx.DEBUG, "[moesif] send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event - prv_events).." for pid - ".. ngx.worker.pid().. " with queue size - ".. tostring(length))
 
 end
 

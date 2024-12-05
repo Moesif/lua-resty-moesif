@@ -1,42 +1,8 @@
-local ngx_now = ngx.now
-local req_get_method = ngx.req.get_method
-local req_start_time = ngx.req.start_time
-local cjson = require "cjson"
-local cjson_safe = require "cjson.safe"
-local random = math.random
-local moesif_client = require "moesifapi.lua.moesif_client"
-local zzlib = require "moesifapi.lua.zzlib"
-local base64 = require "moesifapi.lua.base64"
-local helpers = require "helpers"
 local _M = {}
 local ngx_log = ngx.log
 local ser_helper = require "moesifapi.lua.serializaiton_helper"
-
-local function dump(o)
-  if type(o) == 'table' then
-    local s = '{ '
-    for k,v in pairs(o) do
-      if type(k) ~= 'number' then k = '"'..k..'"' end
-      s = s .. '['..k..'] = ' .. dump(v) .. ','
-    end
-    return s .. '} '
-  else
-    return tostring(o)
-  end
-end
-
--- Split the string
-local function split(str, character)
-  local result = {}
-
-  local index = 1
-  for s in string.gmatch(str, "[^"..character.."]+") do
-    result[index] = s
-    index = index + 1
-  end
-
-  return result
-end
+local moesif_client = require "moesifapi.lua.moesif_client"
+local helpers = require "helpers"
 
 -- Prepare message
 function _M.prepare_message(config)
@@ -58,8 +24,8 @@ function _M.prepare_message(config)
   local debug = config:get("debug")
 
   if debug then
-    ngx_log(ngx.DEBUG, "[moesif] request headers from ngx.req while preparing message ", dump(request_headers))
-    ngx_log(ngx.DEBUG, "[moesif] response headers from ngx.resp while preparing message ", dump(response_headers))
+    ngx_log(ngx.DEBUG, "[moesif] request headers from ngx.req while preparing message ", helpers.dump(request_headers))
+    ngx_log(ngx.DEBUG, "[moesif] response headers from ngx.resp while preparing message ", helpers.dump(response_headers))
   end
 
 
@@ -100,7 +66,7 @@ function _M.prepare_message(config)
   if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
     request_body_entity = nil
   else
-    local request_body_masks = ser_helper.mask_body_fields(split(config:get("request_body_masks"), ","), split(config:get("request_masks"), ","))
+    local request_body_masks = ser_helper.mask_body_fields(helpers.split(config:get("request_body_masks"), ","), helpers.split(config:get("request_masks"), ","))
     request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, moesif_ctx.req_body, request_body_masks, config)
   end
 
@@ -109,13 +75,13 @@ function _M.prepare_message(config)
   if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") or (response_content_length ~= nil and tonumber(response_content_length) > config:get("max_body_size_limit")) then
     response_body_entity = nil
   else
-    local response_body_masks = ser_helper.mask_body_fields(split(config:get("response_body_masks"), ","), split(config:get("response_masks"), ","))
+    local response_body_masks = ser_helper.mask_body_fields(helpers.split(config:get("response_body_masks"), ","), helpers.split(config:get("response_masks"), ","))
     response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, moesif_ctx.res_body, response_body_masks, config)
   end
 
   -- Headers
-  local request_header_masks = split(config:get("request_header_masks"), ",")
-  local response_header_masks = split(config:get("response_header_masks"), ",")
+  local request_header_masks = helpers.split(config:get("request_header_masks"), ",")
+  local response_header_masks = helpers.split(config:get("response_header_masks"), ",")
   
   -- Mask request headers
   if next(request_header_masks) ~= nil then
@@ -164,13 +130,12 @@ function _M.prepare_message(config)
   end
 
   if debug then
-    ngx_log(ngx.DEBUG, "[moesif] request headers before sending to moesif ", dump(request_headers))
-    ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", dump(response_headers))
+    ngx_log(ngx.DEBUG, "[moesif] request headers before sending to moesif ", helpers.dump(request_headers))
+    ngx_log(ngx.DEBUG, "[moesif] response headers before sending to moesif ", helpers.dump(response_headers))
   end
 
   -- Add blocked_by field to the event to determine the rule by which the event was blocked
-  ngx_log(ngx.DEBUG, "[moesif] ngx ctx ", dump(ngx.ctx))
-  if ngx.ctx.moesif ~= nil and ngx.ctx.moesif.blocked_by ~= nil then 
+  if ngx.ctx.moesif ~= nil and ngx.ctx.moesif.blocked_by ~= nil then
     blocked_by_entity = ngx.ctx.moesif.blocked_by
   end
 
