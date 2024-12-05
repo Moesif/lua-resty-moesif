@@ -26,6 +26,7 @@ dependencies = {
   "luasocket >= 3.0rc1",
   "lua-cjson >= 2.1.0.6",
   "luaxml >= 101012",
+  "moesifapi-lua"
 }
 
 build = {
