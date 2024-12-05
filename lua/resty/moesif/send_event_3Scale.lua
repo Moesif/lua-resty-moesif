@@ -136,7 +136,7 @@ if helpers.isempty(config:get("authorization_header_name")) then
   end
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif-3scale/1.3.12"
+local user_agent_string = "lua-resty-moesif-3scale/1.4.0"
 
 -- Get 3Scale Application configuration function
 local function get_3Scale_config(premature, config, auth_api_key, auth_app_id, auth_app_key_pair, is_auth_pair_method, user_id_name, company_id_name, logEvent, message, debug)
