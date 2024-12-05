@@ -1,6 +1,6 @@
 local _M = {}
 local ngx_log = ngx.log
-local ser_helper = require "moesifapi.lua.serializaiton_helper"
+local parse_body = require "moesifapi.lua.parse_body"
 local moesif_client = require "moesifapi.lua.moesif_client"
 local moesif_helpers = require "moesifapi.lua.helpers"
 local helpers = require "helpers"
@@ -67,7 +67,7 @@ function _M.prepare_message(config)
   if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
     request_body_entity = nil
   else
-    local request_body_masks = ser_helper.mask_body_fields(moesif_helpers.split(config:get("request_body_masks"), ","), moesif_helpers.split(config:get("request_masks"), ","))
+    local request_body_masks = parse_body.mask_body_fields(moesif_helpers.split(config:get("request_body_masks"), ","), moesif_helpers.split(config:get("request_masks"), ","))
     request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, moesif_ctx.req_body, request_body_masks, config)
   end
 
@@ -76,7 +76,7 @@ function _M.prepare_message(config)
   if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") then
     response_body_entity = nil
   else
-    local response_body_masks = ser_helper.mask_body_fields(moesif_helpers.split(config:get("response_body_masks"), ","), moesif_helpers.split(config:get("response_masks"), ","))
+    local response_body_masks = parse_body.mask_body_fields(moesif_helpers.split(config:get("response_body_masks"), ","), moesif_helpers.split(config:get("response_masks"), ","))
     response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, moesif_ctx.res_body, response_body_masks, config)
   end
 
@@ -86,12 +86,12 @@ function _M.prepare_message(config)
   
   -- Mask request headers
   if next(request_header_masks) ~= nil then
-    request_headers = ser_helper.mask_headers(ngx.req.get_headers(), request_header_masks)
+    request_headers = parse_body.mask_headers(ngx.req.get_headers(), request_header_masks)
   end
 
   -- Mask response headers
   if next(response_header_masks) ~= nil then
-    response_headers = ser_helper.mask_headers(ngx.resp.get_headers(), response_header_masks)
+    response_headers = parse_body.mask_headers(ngx.resp.get_headers(), response_header_masks)
   end
 
   -- Get session token
