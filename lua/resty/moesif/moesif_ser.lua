@@ -97,11 +97,6 @@ function _M.prepare_message(config)
 
   -- Request body
   local request_content_length = ngx.req.get_headers()["content-length"]
-
-  ngx.log(ngx.DEBUG, "[moesif] req ngx.ctx: ", dump(ngx.ctx))
-  ngx.log(ngx.DEBUG, "[moesif] req moesif_ctx: ", dump(moesif_ctx))
-  ngx.log(ngx.DEBUG, "[moesif] req ngx.var: ", dump(ngx.var))
-
   if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
     request_body_entity = nil
   else
@@ -185,8 +180,7 @@ function _M.prepare_message(config)
                                           session_token_entity, user_id_entity, company_id_entity, blocked_by_entity)
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] SKIPPED Sending event as request uri is not valid, the request uri found is below - ");
-      ngx_log(ngx.DEBUG, request_uri)
+      ngx_log(ngx.DEBUG, "[moesif] SKIPPED Sending event as request uri is not valid, the request uri found is: - ", request_uri);
     end
     return {}
   end

@@ -36,7 +36,6 @@ build = {
     ["lua.resty.moesif.log"] = "lua/resty/moesif/log.lua",
     ["lua.resty.moesif.moesif_ser"] = "lua/resty/moesif/moesif_ser.lua",
     ["lua.resty.moesif.helpers"] = "lua/resty/moesif/helpers.lua",
-    ["lua.resty.moesif.connection"] = "lua/resty/moesif/connection.lua",
     ["lua.resty.moesif.read_req_body"] = "lua/resty/moesif/read_req_body.lua",
     ["lua.resty.moesif.read_res_body"] = "lua/resty/moesif/read_res_body.lua"
   }
