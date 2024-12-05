@@ -29,19 +29,6 @@ function _M.prepare_config_mapping(message)
   return regex_config
 end 
 
--- Split the string
-function _M.split(str, character)
-  local result = {}
-
-  local index = 1
-  for s in string.gmatch(str, "[^"..character.."]+") do
-    result[index] = s
-    index = index + 1
-  end
-
-  return result
-end
-
 -- Function to check if value is empty or nil
 function _M.isempty(s)
   return s == nil or s == ''
@@ -133,10 +120,6 @@ function _M.set_default_config_value(config)
     config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
   end
 
-  if _M.isempty(config:get("max_body_size_limit")) then
-    config:set("max_body_size_limit", 100000)
-  end
-
   if _M.isempty(config:get("authorization_header_name")) then
     config:set("authorization_header_name", "authorization")
   end
@@ -153,7 +136,6 @@ function _M.set_default_config_value(config)
     config:set("enable_compression", false)
   end
 
-
   if _M.isempty(config:get("request_max_body_size_limit")) then
     config:set("request_max_body_size_limit", 100000)
   end
@@ -163,7 +145,7 @@ function _M.set_default_config_value(config)
   end
 
   if _M.isempty(config:get("request_query_masks")) then
-    config:set("request_query_masks", "[]")
+    config:set("request_query_masks", "")
   end
 
   return config

@@ -123,10 +123,6 @@ if helpers.isempty(config:get("disable_gzip_payload_decompression")) then
     config:set("disable_gzip_payload_decompression", false)
 end
 
-if helpers.isempty(config:get("max_body_size_limit")) then
-    config:set("max_body_size_limit", 100000)
-  end
-
 if helpers.isempty(config:get("queue_scheduled_time")) then
     config:set("queue_scheduled_time", os.time{year=1970, month=1, day=1, hour=0})
 end

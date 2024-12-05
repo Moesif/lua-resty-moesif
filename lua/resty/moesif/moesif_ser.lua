@@ -2,6 +2,7 @@ local _M = {}
 local ngx_log = ngx.log
 local ser_helper = require "moesifapi.lua.serializaiton_helper"
 local moesif_client = require "moesifapi.lua.moesif_client"
+local moesif_helpers = require "moesifapi.lua.helpers"
 local helpers = require "helpers"
 
 -- Prepare message
@@ -63,25 +64,25 @@ function _M.prepare_message(config)
 
   -- Request body
   local request_content_length = ngx.req.get_headers()["content-length"]
-  if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") or (request_content_length ~= nil and tonumber(request_content_length) > config:get("max_body_size_limit")) then
+  if moesif_ctx.req_body == nil or config:get("disable_capture_request_body") then
     request_body_entity = nil
   else
-    local request_body_masks = ser_helper.mask_body_fields(helpers.split(config:get("request_body_masks"), ","), helpers.split(config:get("request_masks"), ","))
+    local request_body_masks = ser_helper.mask_body_fields(moesif_helpers.split(config:get("request_body_masks"), ","), moesif_helpers.split(config:get("request_masks"), ","))
     request_body_entity, req_body_transfer_encoding = moesif_client.parse_body(request_headers, moesif_ctx.req_body, request_body_masks, config)
   end
 
   -- Response body
   local response_content_length = ngx.resp.get_headers()["content-length"]
-  if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") or (response_content_length ~= nil and tonumber(response_content_length) > config:get("max_body_size_limit")) then
+  if moesif_ctx.res_body == nil or config:get("disable_capture_response_body") then
     response_body_entity = nil
   else
-    local response_body_masks = ser_helper.mask_body_fields(helpers.split(config:get("response_body_masks"), ","), helpers.split(config:get("response_masks"), ","))
+    local response_body_masks = ser_helper.mask_body_fields(moesif_helpers.split(config:get("response_body_masks"), ","), moesif_helpers.split(config:get("response_masks"), ","))
     response_body_entity, rsp_body_transfer_encoding = moesif_client.parse_body(response_headers, moesif_ctx.res_body, response_body_masks, config)
   end
 
   -- Headers
-  local request_header_masks = helpers.split(config:get("request_header_masks"), ",")
-  local response_header_masks = helpers.split(config:get("response_header_masks"), ",")
+  local request_header_masks = moesif_helpers.split(config:get("request_header_masks"), ",")
+  local response_header_masks = moesif_helpers.split(config:get("response_header_masks"), ",")
   
   -- Mask request headers
   if next(request_header_masks) ~= nil then
