@@ -6,7 +6,7 @@ local helpers = require "helpers"
 local config = helpers.set_default_config_value(ngx.shared.moesif_conf)
 
 -- User Agent String
-local user_agent_string = "lua-resty-moesif/1.4.0"
+local user_agent_string = "lua-resty-moesif/2.0.0"
 
 -- Log Event
 if helpers.isempty(config:get("application_id")) then

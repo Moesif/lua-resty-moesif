@@ -94,7 +94,7 @@ function _M.set_default_config_value(config)
   end
 
   if _M.isempty(config:get("batch_size")) then
-    config:set("batch_size", 200)
+    config:set("batch_size", 50)
   end
 
   if _M.isempty(config:get("debug")) then

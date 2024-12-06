@@ -176,8 +176,10 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   if queue_hashes ~= nil then 
     length = #queue_hashes
   end
-  ngx_log(ngx.DEBUG, "[moesif] send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event - prv_events).." for pid - ".. ngx.worker.pid().. " with queue size - ".. tostring(length))
-
+  local sent_event_delta = (sent_event - prv_events)
+  if sent_event_delta > 0 then 
+    ngx_log(ngx.DEBUG, "[moesif] send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event_delta) .. " with queue size - " .. tostring(length) .." for pid - ".. ngx.worker.pid())
+  end
 end
 
 -- Log to a Http end point.
