@@ -1,16 +1,16 @@
-local cjson = require "cjson"
+local _M = {}
+
 local socket = require "socket"
-local HTTPS = "https"
-local string_format = string.format
+local helpers = require "helpers"
+local moesif_http_conn = require "moesifapi.lua.http_connection"
+local moesif_client = require "moesifapi.lua.moesif_client"
+
 local configuration = nil
 local config_hashes = {}
 local queue_hashes = {}
 local queue_scheduled_time
 local moesif_events = "moesif_events_"
 local has_events = false
-local compress = require "lib_deflate"
-local helpers = require "helpers"
-local connect = require "connection"
 local sample_rate = 100
 local ngx_log = ngx.log
 local ngx_log_ERR = ngx.ERR
@@ -20,146 +20,49 @@ local health_check = 0
 local rec_event = 0
 local sent_event = 0
 local merge_config = 0
-local _M = {}
-
--- Generates http payload
-local function generate_post_payload(config, parsed_url, message, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds)
-
-  local payload = nil
-  local body = cjson.encode(message)
-
-  local ok, compressed_body = pcall(compress["CompressDeflate"], compress, body)
-  if not ok then
-    if debug then
-      ngx_log(ngx_log_ERR, "[moesif] failed to compress body: ", compressed_body)
-    end
-
-    payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Pid:" .. tostring(ngx.worker.pid()) .. "\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, #body, body)
-    return payload
-  else
-    if debug then
-      ngx_log(ngx.DEBUG, " [moesif]  ", "successfully compressed body")
-    end
-    payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Pid:" .. tostring(ngx.worker.pid()) .. "\r\nX-Moesif-Timer-Start:" .. tostring(timer_start) .. "\r\nX-Moesif-Timer-Delay:" .. tostring(timer_delay_in_seconds) .. "\r\nX-Moesif-Application-Id: %s\r\nUser-Agent: %s\r\nContent-Encoding: %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\n\r\n%s",
-      "POST", parsed_url.path, parsed_url.host, application_id, user_agent_string, "deflate", #compressed_body, compressed_body)
-    return payload
-  end  
-end
 
 
 -- Send Payload
-local function send_payload(sock, parsed_url, batch_events, config, user_agent_string, debug)
+local function send_payload(batch_events, config, user_agent_string, debug)
   local application_id = config.application_id
   local timer_start = os.date('%Y-%m-%dT%H:%M:%SZ', queue_scheduled_time)
   local timer_delay_in_seconds = (os.time() - queue_scheduled_time) / 1000
-  local ok, err = sock:send(generate_post_payload(config, parsed_url, batch_events, application_id, user_agent_string, debug, timer_start, timer_delay_in_seconds) .. "\r\n")
-  if not ok then
+
+  -- Prepare payload
+  local payload, isCompressed = moesif_client.generate_post_payload(config, batch_events, debug)
+
+  -- Create http client
+  local httpc = moesif_client.get_http_connection(config)
+
+  -- Perform the POST request
+  local start_req_time = socket.gettime()*1000
+  local res, err = moesif_http_conn.post_request(httpc, config, "/v1/events/batch", payload, isCompressed, user_agent_string)
+  local end_req_time = socket.gettime()*1000
+  
+  if config.debug then
+    ngx_log(ngx.DEBUG, "[moesif] Send HTTP request took time - ".. tostring(end_req_time - start_req_time).." for pid - ".. ngx.worker.pid())
+  end
+  if not res then
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .." for pid - ".. ngx.worker.pid() .. " is: ", err)
+      ngx_log(ngx.DEBUG, "[moesif] failed to send data for pid - ".. ngx.worker.pid() .. " with status: ", tostring(res.status))
     end
   else
     if debug then
-      ngx_log(ngx.DEBUG, "[moesif] Events sent successfully for pid - ".. ngx.worker.pid() , ok)
+      ngx_log(ngx.DEBUG, "[moesif] Events sent successfully for pid - ".. ngx.worker.pid())
     end
   end
 end
 
--- Get App Config function
--- @param `conf`     Configuration table, holds http endpoint details
-local function get_config_internal(config, debug)
-  
-  local config_socket = ngx.socket.tcp()
-  config_socket:settimeout(config.connect_timeout)
-  local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/config", config_socket)
-
-  if type(config_socket) == "table" and next(config_socket) ~= nil then
-    -- Prepare the payload
-    local payload = string_format(
-      "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\nX-Moesif-Batch-Size:" .. tostring(config.batch_size) .. "\r\nX-Moesif-Batch-Max-Time:".. tostring(config.batch_max_time) .."\r\nX-Moesif-Application-Id: %s\r\n",
-      "GET", parsed_url.path, parsed_url.host, config.application_id)
-
-      -- Send the request
-      local ok, err = config_socket:send(payload .. "\r\n")
-      if not ok then
-        if debug then
-          ngx_log(ngx_log_ERR, "[moesif] failed to send data to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
-        end
-      else
-        if debug then
-          ngx_log(ngx.DEBUG, "[moesif] Successfully send request to fetch the application configuration " , ok)
-        end
-      end
-
-      -- Read the response
-      local config_response, config_response_error = helpers.read_socket_data(config_socket, config)
-      if config_response_error == nil then 
-        if config_response ~= nil then
-          
-          local ok_config, err_config = config_socket:setkeepalive(config.keepalive)
-          if not ok_config then
-            if debug then
-              ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err_config)
-            end
-            local close_ok, close_err = config_socket:close()
-            if not close_ok then
-                if debug then
-                    ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
-                end
-            else
-                if debug then
-                    ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
-                end
-            end
-          else
-            if debug then
-              ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok_config)
-            end
-          end
-
-          local raw_config_response = config_response:match("(%{.*})")
-          if raw_config_response ~= nil then
-            local response_body = cjson.decode(raw_config_response)
-            local config_tag = string.match(config_response, "ETag%s*:%s*(.-)\n")
-
-            if config_tag ~= nil then
-              config["ETag"] = config_tag
-            end
-    
-            if (config["sample_rate"] ~= nil) and (response_body ~= nil) then
-
-              if (response_body["user_sample_rate"] ~= nil) then
-                config["user_sample_rate"] = response_body["user_sample_rate"]
-              end
-  
-              if (response_body["company_sample_rate"] ~= nil) then
-                config["company_sample_rate"] = response_body["company_sample_rate"]
-              end
-  
-              if (response_body["regex_config"] ~= nil) then
-                config["regex_config"] = response_body["regex_config"]
-              end
-  
-              if (response_body["sample_rate"] ~= nil) then 
-                config["sample_rate"] = response_body["sample_rate"]
-              end
-            end
-            config.is_config_fetched = true
-          else
-            if debug then
-              ngx_log(ngx.DEBUG, "[moesif] raw config response is nil so could not decode it, the config response is - " .. tostring(config_response))
-            end
-          end
-        else
-          ngx_log(ngx.DEBUG, "[moesif] application config is nil ")
-        end
-      else 
-        ngx_log(ngx.DEBUG,"[moesif] error while reading response after fetching app config - ", config_response_error)
-      end
-      return config_response
+local function send_batch(batch_events, config, user_agent_string, debug)
+  local start_pay_time = socket.gettime()*1000
+  if pcall(send_payload, batch_events, config, user_agent_string, debug) then
+    sent_event = sent_event + #batch_events
   end
+  local end_pay_time = socket.gettime()*1000
+  if debug then
+    ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
+  end
+  batch_events = {}
 end
 
 -- Get App Config function
@@ -168,7 +71,7 @@ local function get_config(premature, config, debug)
     return
   end
 
-  local ok, err = pcall(get_config_internal, config, debug)
+  local ok, err = pcall(moesif_client.get_config_internal, config, debug)
   if not ok then
     if debug then
       ngx_log(ngx_log_ERR, "[moesif] failed to get config internal ", err)
@@ -200,10 +103,6 @@ local function send_events_batch(premature, config, user_agent_string, debug)
     return
   end
 
-  local send_events_socket = ngx.socket.tcp()
-  local global_socket_timeout = 1000
-  send_events_socket:settimeout(global_socket_timeout)
-
   local batch_events = {}
 
   -- Getting the configuration
@@ -211,76 +110,24 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   queue_hashes = {}
   repeat
       if #local_queue > 0 and ((socket.gettime()*1000 - start_time) <= config_hashes.max_callback_time_spent) then
-        ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif for pid - ".. ngx.worker.pid())
-
-        local start_con_time = socket.gettime()*1000
-        local sock, parsed_url = connect.get_connection(config, config.api_endpoint, "/v1/events/batch", send_events_socket)
-        local end_con_time = socket.gettime()*1000
         if debug then
-          ngx_log(ngx.DEBUG, "[moesif] get connection took time - ".. tostring(end_con_time - start_con_time).." for pid - ".. ngx.worker.pid())
+          ngx_log(ngx.DEBUG, "[moesif] Sending events to Moesif for pid - ".. ngx.worker.pid())
         end
-
-        if type(send_events_socket) == "table" and next(send_events_socket) ~= nil then
           
-          local counter = 0
-          repeat
-            local event = table.remove(local_queue)
-            counter = counter + 1
-            table.insert(batch_events, event)
-            if (#batch_events == config.batch_size) then
-              local start_pay_time = socket.gettime()*1000
-              if pcall(send_payload, send_events_socket, parsed_url, batch_events, config, user_agent_string, debug) then 
-                sent_event = sent_event + #batch_events
-               end
-              local end_pay_time = socket.gettime()*1000
-               if debug then
-                ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
-               end
-               batch_events = {}
-            else if(#local_queue ==0 and #batch_events > 0) then
-                local start_pay1_time = socket.gettime()*1000
-                if pcall(send_payload, send_events_socket, parsed_url, batch_events, config, user_agent_string, debug) then 
-                  sent_event = sent_event + #batch_events
-                end
-                local end_pay1_time = socket.gettime()*1000
-                if debug then
-                  ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay1_time - start_pay1_time).." for pid - ".. ngx.worker.pid())
-                end
-                batch_events = {}
-              end
-            end
-          until counter == config.batch_size or next(local_queue) == nil
-  
-          if #local_queue > 0 then
-            has_events = true
-          else
-            has_events = false
+        local counter = 0
+        repeat
+          local event = table.remove(local_queue)
+          counter = counter + 1
+          table.insert(batch_events, event)
+          if ((#batch_events == config.batch_size) or (#local_queue ==0 and #batch_events > 0)) then
+            send_batch(batch_events, config, user_agent_string, debug)
           end
-  
-          local ok, err = send_events_socket:setkeepalive()
-          if not ok then
-            if debug then
-              ngx_log(ngx_log_ERR, "[moesif] failed to keepalive to " .. parsed_url.host .. ":" .. tostring(parsed_url.port) .. ": ", err)
-            end
-            local close_ok, close_err = send_events_socket:close()
-            if not close_ok then
-              if debug then
-                ngx_log(ngx_log_ERR,"[moesif] Failed to manually close socket connection ", close_err)
-              end
-            else
-              if debug then
-                ngx_log(ngx.DEBUG,"[moesif] success closing socket connection manually ")
-              end
-            end
-           else
-            if debug then
-              ngx_log(ngx.DEBUG, "[moesif] success keep-alive", ok)
-            end
-          end
-        else 
-          if debug then 
-            ngx_log(ngx.DEBUG, "[moesif] Failure to create socket connection for sending event to Moesif for pid - ".. ngx.worker.pid())
-          end
+        until counter == config.batch_size or next(local_queue) == nil
+
+        if #local_queue > 0 then
+          has_events = true
+        else
+          has_events = false
         end
         if debug then 
           ngx_log(ngx.DEBUG, "[moesif] Received Event - "..tostring(rec_event).." and Sent Event - "..tostring(sent_event).." for pid - ".. ngx.worker.pid())
@@ -288,9 +135,13 @@ local function send_events_batch(premature, config, user_agent_string, debug)
       else
         has_events = false
         if #local_queue <= 0 then 
-          ngx_log(ngx.DEBUG, "[moesif] Queue is empty, no events to send for pid - ".. ngx.worker.pid())
+          if debug then
+            ngx_log(ngx.DEBUG, "[moesif] Queue is empty, no events to send for pid - ".. ngx.worker.pid())
+          end
         else
-          ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now for pid - ".. ngx.worker.pid())
+          if debug then
+            ngx_log(ngx.DEBUG, "[moesif] Max callback time exceeds, skip sending events now for pid - ".. ngx.worker.pid())
+          end
         end
       end
   until has_events == false
@@ -325,8 +176,10 @@ local function send_events_batch(premature, config, user_agent_string, debug)
   if queue_hashes ~= nil then 
     length = #queue_hashes
   end
-  ngx_log(ngx.DEBUG, "[moesif] send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event - prv_events).." for pid - ".. ngx.worker.pid().. " with queue size - ".. tostring(length))
-
+  local sent_event_delta = (sent_event - prv_events)
+  if sent_event_delta > 0 then 
+    ngx_log(ngx.DEBUG, "[moesif] send events batch took time - ".. tostring(endtime - start_time) .. " and sent event delta - " .. tostring(sent_event_delta) .. " with queue size - " .. tostring(length) .." for pid - ".. ngx.worker.pid())
+  end
 end
 
 -- Log to a Http end point.
@@ -356,7 +209,7 @@ local function log(config, message, debug)
   -- calculate regex sample rate
   if type(config.regex_config) == "table" and next(config.regex_config) ~= nil then
     local config_mapping = helpers.prepare_config_mapping(message)
-    local ok, sample_rate, block_rule = pcall(helpers.fetch_sample_rate_block_request_on_regex_match, config.regex_config, config_mapping)
+    local ok, sample_rate, block_rule = pcall(moesif_client.fetch_sample_rate_block_request_on_regex_match, config.regex_config, config_mapping)
     if ok then
       regex_sampling_rate = sample_rate
     end
@@ -483,6 +336,8 @@ function _M.execute(config, message, user_agent_string, debug)
           ngx_log(ngx.DEBUG, "[moesif] successfully fetched the application configuration" , ok)
         end
       end
+    -- ELSE IF config.config_last_fetch_time > 2 mins (basedon the current time)
+    -- config.is_config_fetched = nil
     end
   end
 
