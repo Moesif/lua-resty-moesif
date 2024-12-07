@@ -35,6 +35,9 @@ lua_shared_dict moesif_conf 5m;
 init_by_lua_block {
    local config = ngx.shared.moesif_conf;
    config:set("application_id", "Your Moesif Application Id")
+
+   local mo_client = require "moesifapi.lua.moesif_client"
+   mo_client.get_moesif_client(ngx)
 }
 
 lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so;/usr/local/share/lua/5.1/resty/moesif/?.so";
@@ -96,6 +99,9 @@ init_by_lua_block {
    config:set("application_id", "Your Moesif Application Id")
    config:set("3scale_domain", "YOUR_ACCOUNT-admin.3scale.net")
    config:set("3scale_access_token", "Your 3scale Access Token")
+
+   local mo_client = require "moesifapi.lua.moesif_client"
+   mo_client.get_moesif_client(ngx)
 }
 
 lua_package_cpath ";;${prefix}?.so;${prefix}src/?.so;/usr/share/lua/5.1/lua/resty/moesif/?.so;/usr/share/lua/5.1/?.so;/usr/lib64/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/openresty/luajit/share/lua/5.1/lua/resty?.so";
@@ -151,6 +157,9 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 #### __`response_body_masks`__
 (optional) _string_, An option to mask a specific response body fields. Separate multiple fields by comma such as `"field_a, field_b"`
 
+#### __`request_query_masks`__
+(optional) _string_, An option to mask a specific query string params. Separate multiple fields by comma such as `"param_a, param_b"`
+
 #### __`disable_transaction_id`__
 (optional) _boolean_, Setting to true will prevent insertion of the <code>X-Moesif-Transaction-Id</code> header. `false` by default.
 
@@ -162,6 +171,21 @@ Static options that are set once on startup such as in `init_by_lua_block`.
 
 #### __`authorization_user_id_field`__
 (optional) _string_, Field name to parse the User from authorization header in Moesif. Defaults to `sub`.
+
+#### __`authorization_company_id_field`__
+(optional) _string_, Field name to parse the Company from authorization header in Moesif.
+
+#### __`batch_size`__
+(optional) _number_, Maximum batch size when sending to Moesif. Defaults to `50`
+
+#### __`request_max_body_size_limit`__
+(optional)  _number_, Maximum request body size in bytes to log. Defaults to `100000`
+
+#### __`response_max_body_size_limit`__
+(optional) _number_, Maximum response body size in bytes to log. Defaults to `100000`
+
+#### __`enable_compression`__
+(optinoal) _boolean_, If set to true, requests are compressed before sending to Moesif. `false` by default.
 
 ### 3Scale specific options
 
@@ -262,6 +286,29 @@ server {
   }
 }
 ```
+
+## Upgrade Instructions for v2.0.0+
+
+When upgrading to version 2.0.0 or higher, please follow these steps to ensure a smooth transition:
+
+1. Install Required Dependencies
+
+Ensure the necessary packages are installed on your system. The following commands are an example for Linux-based systems:
+
+```
+apt-get update
+apt-get install git zlib1g-dev gcc
+```
+
+2. Update nginx.conf
+
+In your nginx.conf file, add the following Lua code inside the init_by_lua block:
+```
+local mo_client = require "moesifapi.lua.moesif_client"
+mo_client.get_moesif_client(ngx)
+```
+This will initialize the custom client necessary for the plugin to function correctly.
+
 
 ## Example
 An example [Moesif integration](https://github.com/Moesif/lua-resty-moesif-example) is available based on the quick start tutorial of Openresty
