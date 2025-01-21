@@ -55,14 +55,14 @@ end
 
 local function send_batch(batch_events, config, user_agent_string, debug)
   local start_pay_time = socket.gettime()*1000
-  if pcall(send_payload, batch_events, config, user_agent_string, debug) then
-    sent_event = sent_event + #batch_events
+  if not pcall(send_payload, batch_events, config, user_agent_string, debug) then
+    return false
   end
   local end_pay_time = socket.gettime()*1000
   if debug then
     ngx_log(ngx.DEBUG, "[moesif] send payload with event count - " .. tostring(#batch_events) .. " took time - ".. tostring(end_pay_time - start_pay_time).." for pid - ".. ngx.worker.pid())
   end
-  batch_events = {}
+  return true
 end
 
 -- Get App Config function
@@ -120,7 +120,16 @@ local function send_events_batch(premature, config, user_agent_string, debug)
           counter = counter + 1
           table.insert(batch_events, event)
           if ((#batch_events == config.batch_size) or (#local_queue ==0 and #batch_events > 0)) then
-            send_batch(batch_events, config, user_agent_string, debug)
+            if send_batch(batch_events, config, user_agent_string, debug) then
+              sent_event = sent_event + #batch_events
+              batch_events = {}
+            else
+              repeat
+                local event = table.remove(batch_events)
+                table.insert(local_queue, event)
+              until next(batch_events) == nil
+              return
+            end
           end
         until counter == config.batch_size or next(local_queue) == nil
 
